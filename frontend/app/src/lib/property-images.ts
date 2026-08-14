@@ -4,6 +4,9 @@
 
 import gomtiRiverside2Bhk from "../assets/properties/gomti-riverside-2bhk.webp";
 import hazratganjStudio from "../assets/properties/hazratganj-studio.webp";
+import indiraNagarVilla from "../assets/properties/indira-nagar-villa.webp";
+import aliganjResidency from "../assets/properties/aliganj-residency.webp";
+import mahanagarSuite from "../assets/properties/mahanagar-suite.webp";
 
 export type PropertyImage = {
   src: string;
@@ -18,6 +21,18 @@ const BY_ADDRESS: Record<string, PropertyImage> = {
   "4/22 hazratganj|226001": {
     src: hazratganjStudio,
     alt: "Warm, contemporary residential interior with natural light",
+  },
+  "45 indira nagar sector c|226016": {
+    src: indiraNagarVilla,
+    alt: "Warmly lit independent villa exterior with a landscaped garden",
+  },
+  "18/7 aliganj sector e|226024": {
+    src: aliganjResidency,
+    alt: "Open-plan living room and kitchen with warm modern finishes",
+  },
+  "9 mahanagar colony|226006": {
+    src: mahanagarSuite,
+    alt: "Serene bedroom suite with a garden-facing window",
   },
 };
 

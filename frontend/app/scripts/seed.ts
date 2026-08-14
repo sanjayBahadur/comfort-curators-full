@@ -5,7 +5,13 @@ const TENANT_ID =
 const OWNER_AUTHORITY_ID =
   process.env.CC_DEMO_OWNER_AUTHORITY_ID ??
   "22222222-2222-4222-8222-222222222222";
-const CALENDAR_FIXTURE_PATHS = ["/demo.ics", "/demo-hazratganj.ics"] as const;
+const CALENDAR_FIXTURE_PATHS = [
+  "/demo.ics",
+  "/demo-hazratganj.ics",
+  "/demo-indira-nagar.ics",
+  "/demo-aliganj.ics",
+  "/demo-mahanagar.ics",
+] as const;
 
 type JsonRecord = Record<string, unknown>;
 
@@ -494,6 +500,54 @@ const propertySeed = [
     },
     maximumOccupancy: 2,
   },
+  {
+    label: "Indira Nagar Villa",
+    idempotencyKey: "comfort-curators-demo-indira-nagar-villa-v1",
+    calendarFeedUrl:
+      process.env.CC_DEMO_INDIRA_NAGAR_ICAL_URL ??
+      "http://host.docker.internal:3000/demo-indira-nagar.ics",
+    address: {
+      line1: "45 Indira Nagar Sector C",
+      line2: "Indira Nagar Villa",
+      city: "Lucknow",
+      state: "UP",
+      postal_code: "226016",
+      country: "IN",
+    },
+    maximumOccupancy: 6,
+  },
+  {
+    label: "Aliganj Residency",
+    idempotencyKey: "comfort-curators-demo-aliganj-residency-v1",
+    calendarFeedUrl:
+      process.env.CC_DEMO_ALIGANJ_ICAL_URL ??
+      "http://host.docker.internal:3000/demo-aliganj.ics",
+    address: {
+      line1: "18/7 Aliganj Sector E",
+      line2: "Aliganj Residency",
+      city: "Lucknow",
+      state: "UP",
+      postal_code: "226024",
+      country: "IN",
+    },
+    maximumOccupancy: 3,
+  },
+  {
+    label: "Mahanagar Suite",
+    idempotencyKey: "comfort-curators-demo-mahanagar-suite-v1",
+    calendarFeedUrl:
+      process.env.CC_DEMO_MAHANAGAR_ICAL_URL ??
+      "http://host.docker.internal:3000/demo-mahanagar.ics",
+    address: {
+      line1: "9 Mahanagar Colony",
+      line2: "Mahanagar Suite",
+      city: "Lucknow",
+      state: "UP",
+      postal_code: "226006",
+      country: "IN",
+    },
+    maximumOccupancy: 2,
+  },
 ] as const;
 
 async function seedProperties() {
@@ -566,6 +620,30 @@ const documentSeed = [
     { documentType: "other", title: "Resident Association Hosting NOC" },
     { documentType: "inspection_report", title: "Electrical Safety Inspection" },
     { documentType: "other", title: "Furnishing and Appliance Inventory" },
+  ],
+  [
+    { documentType: "agreement", title: "Owner Service Agreement" },
+    { documentType: "insurance_policy", title: "Home Insurance Policy" },
+    { documentType: "property_deed", title: "Registered Property Deed" },
+    { documentType: "inspection_report", title: "Move-in Inspection Report" },
+    { documentType: "tax_document", title: "FY 2026 Property Tax Record" },
+    { documentType: "other", title: "Furnishing and Appliance Inventory" },
+  ],
+  [
+    { documentType: "agreement", title: "Owner Service Agreement" },
+    { documentType: "compliance_cert", title: "Annual Compliance Certificate" },
+    { documentType: "inspection_report", title: "Fire Safety Equipment Inspection" },
+    { documentType: "tax_document", title: "FY 2026 Property Tax Record" },
+    { documentType: "other", title: "Appliance Warranty Register" },
+    { documentType: "compliance_cert", title: "Guest Registration Compliance Record" },
+  ],
+  [
+    { documentType: "agreement", title: "Owner Service Agreement" },
+    { documentType: "insurance_policy", title: "Home Insurance Policy" },
+    { documentType: "inspection_report", title: "Electrical Safety Inspection" },
+    { documentType: "property_deed", title: "Registered Property Deed" },
+    { documentType: "other", title: "Resident Association Hosting NOC" },
+    { documentType: "compliance_cert", title: "Annual Compliance Certificate" },
   ],
 ] as const;
 
@@ -740,6 +818,61 @@ const packageSeed: PackageLine[][] = [
     { sku: "LAMP-01", quantity: 1, expectedMonthlyConsumption: 0 },
     { sku: "CUSH-01", quantity: 2, expectedMonthlyConsumption: 0 },
     { sku: "FIRSTAID-01", quantity: 1, expectedMonthlyConsumption: 0 },
+  ],
+  // Indira Nagar Villa — the largest managed property (occupancy 6),
+  // so its package carries visibly more volume than the two flats above,
+  // plus a couple of furniture/decor lines a full villa would actually need.
+  [
+    { sku: "TOWEL-01", quantity: 8, expectedMonthlyConsumption: 16 },
+    { sku: "TOWEL-02", quantity: 8, expectedMonthlyConsumption: 16 },
+    { sku: "SHEET-01", quantity: 4, expectedMonthlyConsumption: 6 },
+    { sku: "PILLOW-01", quantity: 8, expectedMonthlyConsumption: 3 },
+    { sku: "SOAP-01", quantity: 24, expectedMonthlyConsumption: 48 },
+    { sku: "SHAMP-01", quantity: 24, expectedMonthlyConsumption: 48 },
+    { sku: "TEA-01", quantity: 6, expectedMonthlyConsumption: 12 },
+    { sku: "COFFEE-01", quantity: 3, expectedMonthlyConsumption: 6 },
+    { sku: "WATER-01", quantity: 10, expectedMonthlyConsumption: 20 },
+    { sku: "CLEAN-01", quantity: 3, expectedMonthlyConsumption: 3 },
+    { sku: "CLEAN-02", quantity: 3, expectedMonthlyConsumption: 3 },
+    { sku: "KIT-01", quantity: 3, expectedMonthlyConsumption: 6 },
+    { sku: "LAMP-01", quantity: 3, expectedMonthlyConsumption: 0 },
+    { sku: "CUSH-01", quantity: 4, expectedMonthlyConsumption: 0 },
+    { sku: "FIRSTAID-01", quantity: 1, expectedMonthlyConsumption: 0 },
+    { sku: "RUG-01", quantity: 1, expectedMonthlyConsumption: 0 },
+    { sku: "SIDETBL-01", quantity: 1, expectedMonthlyConsumption: 0 },
+  ],
+  // Aliganj Residency — a mid-size 3-occupancy flat, package sized between
+  // the studio and the villa.
+  [
+    { sku: "TOWEL-01", quantity: 4, expectedMonthlyConsumption: 8 },
+    { sku: "TOWEL-02", quantity: 4, expectedMonthlyConsumption: 8 },
+    { sku: "SHEET-02", quantity: 2, expectedMonthlyConsumption: 3 },
+    { sku: "PILLOW-01", quantity: 4, expectedMonthlyConsumption: 2 },
+    { sku: "SOAP-01", quantity: 12, expectedMonthlyConsumption: 24 },
+    { sku: "SHAMP-01", quantity: 12, expectedMonthlyConsumption: 24 },
+    { sku: "TEA-01", quantity: 3, expectedMonthlyConsumption: 6 },
+    { sku: "COFFEE-01", quantity: 2, expectedMonthlyConsumption: 4 },
+    { sku: "WATER-01", quantity: 6, expectedMonthlyConsumption: 12 },
+    { sku: "CLEAN-01", quantity: 1, expectedMonthlyConsumption: 1 },
+    { sku: "CLEAN-02", quantity: 1, expectedMonthlyConsumption: 1 },
+    { sku: "KIT-01", quantity: 1, expectedMonthlyConsumption: 2 },
+    { sku: "CURTAIN-01", quantity: 1, expectedMonthlyConsumption: 0 },
+    { sku: "PLANTER-01", quantity: 1, expectedMonthlyConsumption: 0 },
+  ],
+  // Mahanagar Suite — a compact 2-occupancy studio, the smallest package.
+  [
+    { sku: "TOWEL-01", quantity: 2, expectedMonthlyConsumption: 4 },
+    { sku: "TOWEL-02", quantity: 2, expectedMonthlyConsumption: 4 },
+    { sku: "SHEET-01", quantity: 1, expectedMonthlyConsumption: 2 },
+    { sku: "PILLOW-01", quantity: 2, expectedMonthlyConsumption: 1 },
+    { sku: "SOAP-01", quantity: 8, expectedMonthlyConsumption: 16 },
+    { sku: "SHAMP-01", quantity: 8, expectedMonthlyConsumption: 16 },
+    { sku: "TEA-01", quantity: 1, expectedMonthlyConsumption: 2 },
+    { sku: "COFFEE-01", quantity: 1, expectedMonthlyConsumption: 2 },
+    { sku: "WATER-01", quantity: 3, expectedMonthlyConsumption: 6 },
+    { sku: "CLEAN-01", quantity: 1, expectedMonthlyConsumption: 1 },
+    { sku: "KIT-01", quantity: 1, expectedMonthlyConsumption: 1 },
+    { sku: "CANDLE-03", quantity: 1, expectedMonthlyConsumption: 0 },
   ],
 ];
 
@@ -978,6 +1111,66 @@ const ticketSeed = [
     requested_window: {
       start: "2026-07-28T05:00:00Z",
       end: "2026-07-28T08:00:00Z",
+    },
+  },
+  {
+    propertyIndex: 2,
+    type: "turnover",
+    targetStatus: "assigned",
+    reason: "Complete the guest checkout turnover at Indira Nagar Villa",
+    requested_window: {
+      start: "2026-08-15T05:30:00Z",
+      end: "2026-08-15T09:00:00Z",
+    },
+  },
+  {
+    propertyIndex: 2,
+    type: "specialist_vendor_request",
+    targetStatus: "scheduled",
+    reason: "Service the garden irrigation system before the next family booking",
+    requested_window: {
+      start: "2026-08-20T04:30:00Z",
+      end: "2026-08-20T07:00:00Z",
+    },
+  },
+  {
+    propertyIndex: 3,
+    type: "restock",
+    targetStatus: "in_progress",
+    reason: "Replenish guest supplies at Aliganj Residency before the next arrival",
+    requested_window: {
+      start: "2026-08-16T08:00:00Z",
+      end: "2026-08-16T09:30:00Z",
+    },
+  },
+  {
+    propertyIndex: 3,
+    type: "pre_arrival_inspection",
+    targetStatus: "approved",
+    reason: "Complete the pre-arrival quality check for the incoming guest",
+    requested_window: {
+      start: "2026-08-17T05:00:00Z",
+      end: "2026-08-17T06:00:00Z",
+    },
+  },
+  {
+    propertyIndex: 4,
+    type: "routine_maintenance",
+    targetStatus: "assigned",
+    reason: "Complete the preventive AC and plumbing check at Mahanagar Suite",
+    requested_window: {
+      start: "2026-08-18T04:00:00Z",
+      end: "2026-08-18T06:00:00Z",
+    },
+  },
+  {
+    propertyIndex: 4,
+    type: "inventory_count",
+    targetStatus: "scheduled",
+    reason: "Count this month's linen and guest-amenity inventory",
+    requested_window: {
+      start: "2026-08-21T04:30:00Z",
+      end: "2026-08-21T06:00:00Z",
     },
   },
 ] as const;

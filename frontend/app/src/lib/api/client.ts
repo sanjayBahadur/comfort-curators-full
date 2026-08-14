@@ -51,10 +51,16 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     }
     // A real session expiry deserves an explanation the user can't miss, not
     // a toast that can go unnoticed and leave every next click failing the
-    // same way silently.
-    if (error.status === 401) {
+    // same way silently. But that's only a real expiry if this request was
+    // actually sent with a token that got rejected -- a 401 on a request
+    // sent with no token at all is the "never had a session yet" case
+    // (a component querying before a just-minted token has propagated, or
+    // before login), which the route guards already handle silently. Firing
+    // the modal there is a false "your session ended" on a session that
+    // never started.
+    if (error.status === 401 && token) {
       notifySessionExpired(error.message);
-    } else {
+    } else if (error.status !== 401) {
       toast.error(error.message);
     }
     throw error;

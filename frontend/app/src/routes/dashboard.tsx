@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, Navigate, useLocation } from "react-router-dom";
 import Money from "../components/money";
@@ -171,6 +171,7 @@ export default function Dashboard() {
   const dashboardQuery = useQuery({ queryKey: ["owner", "dashboard"], queryFn: getOwnerDashboard });
   const dashboard = dashboardQuery.data;
   const [selectedPropertyIndex, setSelectedPropertyIndex] = useState(0);
+  const packageScrollRef = useRef<HTMLDivElement>(null);
   const upcoming = useMemo(() => buildUpcoming(dashboard?.properties ?? []), [dashboard?.properties]);
   const attention = useMemo(
     () => buildAttention(dashboard?.properties ?? [], dashboard?.exceptions ?? []),
@@ -191,6 +192,22 @@ export default function Dashboard() {
   useEffect(() => {
     if (dashboard && selectedPropertyIndex >= dashboard.properties.length) setSelectedPropertyIndex(0);
   }, [dashboard, selectedPropertyIndex]);
+
+  useEffect(() => {
+    const scroller = packageScrollRef.current;
+    if (!scroller || !dashboard?.properties.length) return;
+    scroller.scrollTo({ top: selectedPropertyIndex * scroller.clientHeight });
+  }, [dashboard?.properties.length, selectedPropertyIndex]);
+
+  const handlePackageScroll = () => {
+    const scroller = packageScrollRef.current;
+    if (!scroller || !dashboard?.properties.length || scroller.clientHeight === 0) return;
+    const nextIndex = Math.max(0, Math.min(
+      dashboard.properties.length - 1,
+      Math.round(scroller.scrollTop / scroller.clientHeight),
+    ));
+    if (nextIndex !== selectedPropertyIndex) setSelectedPropertyIndex(nextIndex);
+  };
   const completedTurnovers = dashboard?.properties.reduce(
     (count, property) => count + property.tickets.filter((ticket) =>
       ticket.data.type === "turnover" && FINISHED_STATUSES.has(ticket.data.status),
@@ -292,7 +309,7 @@ export default function Dashboard() {
             </section>
 
             <section className="owner-section owner-attention" data-empty={attention.length === 0} aria-labelledby="attention-title" aria-live="polite">
-              <header><span>02</span><h2 id="attention-title">Needs your attention</h2><small>{attention.length === 0 ? "ALL QUIET" : `${attention.length} OPEN`}</small></header>
+              <header><span>03</span><h2 id="attention-title">Needs your attention</h2><small>{attention.length === 0 ? "ALL QUIET" : `${attention.length} OPEN`}</small></header>
               {attention.length === 0 ? (
                 <div className="owner-attention-empty"><i aria-hidden="true">OK</i><p>No exceptions. We’ll surface anything that needs your decision.</p></div>
               ) : (
@@ -303,9 +320,8 @@ export default function Dashboard() {
             </section>
 
             <div className="owner-dashboard-grid">
-              <div className="owner-dashboard-column">
-                <section className="owner-section owner-upcoming" aria-labelledby="upcoming-title">
-                <header><span>03</span><h2 id="upcoming-title">Next seven days</h2><small>{upcoming.length} COMMITTED</small></header>
+              <section className="owner-section owner-upcoming" aria-labelledby="upcoming-title">
+                <header><span>04</span><h2 id="upcoming-title">Next seven days</h2><small>{upcoming.length} COMMITTED</small></header>
                 {upcoming.length === 0 ? <p className="owner-quiet-empty">Nothing scheduled this week.</p> : (
                   <ol>
                     {upcoming.map(({ ticket, property }, index) => (
@@ -313,51 +329,86 @@ export default function Dashboard() {
                     ))}
                   </ol>
                 )}
-                </section>
+              </section>
 
-                <section className="owner-section owner-contribution" aria-labelledby="contribution-title">
-                  <header><span>05</span><h2 id="contribution-title">This month</h2><small>RECORDED ACTIVITY</small></header>
-                  {dashboard.properties.every(isContributionEmpty) ? (
-                    <p className="owner-quiet-empty">Your first statement appears after the first completed service.</p>
-                  ) : (
-                    <ul>
-                      {dashboard.properties.map((property) => <li key={property.property.id}><span>{propertyName(property)}</span><Money value={property.contribution.data.net_contribution_minor_units} currency={property.contribution.data.currency} /><small>NET CONTRIBUTION</small></li>)}
-                    </ul>
-                  )}
-                </section>
-              </div>
-
-              <div className="owner-dashboard-column">
-                <section className="owner-section owner-packages" aria-labelledby="packages-title">
-                <header><span>04</span><h2 id="packages-title">Your package</h2><small>SERVER PRICED</small></header>
-                <div>
-                  {dashboard.properties.map((property) => (
-                    <article key={property.property.id}>
-                      <span>{propertyName(property)}</span>
+              <section className="owner-section owner-packages" aria-labelledby="packages-title">
+                <header><span>05</span><h2 id="packages-title">Your package</h2><small>PACKAGE BILL</small></header>
+                <div className="owner-package-switcher" aria-label="Package bill selector">
+                  <span>BILL {String(selectedPropertyIndex + 1).padStart(2, "0")} / {String(dashboard.properties.length).padStart(2, "0")}</span>
+                  <strong>{propertyName(selectedProperty ?? dashboard.properties[0])}</strong>
+                  <div>
+                    <button type="button" disabled={dashboard.properties.length < 2} aria-label="Previous package bill" onClick={() => setSelectedPropertyIndex((selectedPropertyIndex - 1 + dashboard.properties.length) % dashboard.properties.length)}>←</button>
+                    <button type="button" disabled={dashboard.properties.length < 2} aria-label="Next package bill" onClick={() => setSelectedPropertyIndex((selectedPropertyIndex + 1) % dashboard.properties.length)}>→</button>
+                  </div>
+                </div>
+                <div className="owner-package-scroll" ref={packageScrollRef} onScroll={handlePackageScroll}>
+                  {dashboard.properties.map((property, propertyIndex) => (
+                    <article className="owner-package-receipt" data-empty={!property.activePackage} data-property-index={propertyIndex} key={property.property.id}>
+                      <div className="owner-package-receipt-brand">
+                        <span>COMFORT CURATORS</span>
+                        <b aria-hidden="true">CC</b>
+                      </div>
+                      <div className="owner-package-receipt-meta">
+                        <span>PROPERTY OF RECORD</span>
+                        <small>{property.activePackage ? `ACTIVE / V${property.activePackage.data.version_number}` : "PACKAGE / NOT SET"}</small>
+                      </div>
+                      <h3>{propertyName(property)}</h3>
+                      <address>{shortAddress(property)}</address>
                       {property.activePackage ? (
-                        <><Money className="owner-package-cost" value={property.activePackage.data.monthly_cost_minor_units} currency={property.activePackage.data.currency} /><small>PER MONTH · ACTIVE V{property.activePackage.data.version_number}</small></>
+                        <>
+                          <dl className="owner-package-lines">
+                            <div><dt>Recurring supply plan</dt><dd><Money value={property.activePackage.data.monthly_cost_minor_units} currency={property.activePackage.data.currency} /></dd></div>
+                            <div><dt>Expected consumption</dt><dd>{property.activePackage.data.monthly_consumption_units} units / month</dd></div>
+                            {property.activePackage.data.setup_cost_minor_units > 0 && (
+                              <div><dt>One-time setup</dt><dd><Money value={property.activePackage.data.setup_cost_minor_units} currency={property.activePackage.data.currency} /></dd></div>
+                            )}
+                          </dl>
+                          <div className="owner-package-total">
+                            <span>Monthly total</span>
+                            <Money className="owner-package-cost" value={property.activePackage.data.monthly_cost_minor_units} currency={property.activePackage.data.currency} />
+                          </div>
+                          <div className="owner-package-barcode" aria-hidden="true" />
+                          <footer>
+                            <small>SERVER PRICED · RECURRING MONTHLY</small>
+                            <Link to={`/properties/${property.property.id}/package`}>REVIEW BILL →</Link>
+                          </footer>
+                        </>
                       ) : (
-                        <><strong>No package yet.</strong><Link to={`/properties/${property.property.id}/package`}>BUILD ONE →</Link></>
+                        <div className="owner-package-empty">
+                          <strong>No package on file.</strong>
+                          <p>Curate the property’s recurring supplies and review the monthly bill before activation.</p>
+                          <Link to={`/properties/${property.property.id}/package`}>BUILD PACKAGE →</Link>
+                        </div>
                       )}
                     </article>
                   ))}
                 </div>
-                </section>
+              </section>
 
-                <section className="owner-section owner-documents" aria-labelledby="documents-title">
-                <header><span>06</span><h2 id="documents-title">Recent documents</h2><small>{allDocuments.length} ON FILE</small></header>
+              <section className="owner-section owner-contribution" aria-labelledby="contribution-title">
+                <header><span>06</span><h2 id="contribution-title">This month</h2><small>RECORDED ACTIVITY</small></header>
+                {dashboard.properties.every(isContributionEmpty) ? (
+                  <p className="owner-quiet-empty">Your first statement appears after the first completed service.</p>
+                ) : (
+                  <ul>
+                    {dashboard.properties.map((property) => <li key={property.property.id}><span>{propertyName(property)}</span><Money value={property.contribution.data.net_contribution_minor_units} currency={property.contribution.data.currency} /><small>NET CONTRIBUTION</small></li>)}
+                  </ul>
+                )}
+              </section>
+
+              <section className="owner-section owner-documents" aria-labelledby="documents-title">
+                <header><span>07</span><h2 id="documents-title">Recent documents</h2><small>{allDocuments.length} ON FILE</small></header>
                 {allDocuments.length === 0 ? (
                   <p className="owner-quiet-empty">No owner documents are on file yet.</p>
                 ) : (
                   <ul>{recentDocuments.map(({ document, property }) => <li key={document.id}><span>{propertyName(property)}</span><strong>{document.data.title}</strong><small>{document.data.status} · ADDED {DASHBOARD_DATE.format(new Date(document.data.created_at))}</small></li>)}</ul>
                 )}
                 <Link className="owner-documents-all" to="/documents">VIEW ALL →</Link>
-                </section>
-              </div>
+              </section>
             </div>
 
             <section className="owner-standards" aria-labelledby="standards-title">
-              <header><span>07 / OPERATING STANDARDS</span><h2 id="standards-title">We operate your property to Superhost standards.</h2><p>The platform designation remains the platform’s decision. Here is the line between our work and yours.</p></header>
+              <header><span>08 / OPERATING STANDARDS</span><h2 id="standards-title">We operate your property to Superhost standards.</h2><p>The platform designation remains the platform’s decision. Here is the line between our work and yours.</p></header>
               <div className="owner-control-columns">
                 <section>
                   <p>WE CONTROL</p>
