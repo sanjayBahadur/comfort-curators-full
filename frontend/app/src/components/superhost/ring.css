@@ -1,0 +1,45 @@
+.control-ring {
+  --control-ring-glow: #00FF66;
+  position: fixed;
+  pointer-events: none;
+  z-index: 10000;
+  outline: 3px solid var(--control-ring-glow);
+  outline-offset: 3px;
+  animation: control-ring-appear 400ms var(--ease-expo-out) forwards;
+  transform-origin: center;
+}
+
+.control-ring-reduced {
+  --control-ring-glow: #00FF66;
+  position: fixed;
+  pointer-events: none;
+  z-index: 10000;
+  outline: 3px solid var(--control-ring-glow);
+  outline-offset: 3px;
+}
+
+.agent-drag-ghost {
+  position: fixed !important;
+  z-index: 10000 !important;
+  margin: 0 !important;
+  overflow: hidden;
+  pointer-events: none !important;
+  box-shadow: 0 0 0 3px #00ff66, 10px 12px 0 rgb(0 0 0 / 18%);
+  transform-origin: center;
+  transition: transform 650ms var(--ease-expo-out), opacity 650ms ease-out !important;
+}
+
+.agent-drag-ghost button {
+  pointer-events: none !important;
+}
+
+@keyframes control-ring-appear {
+  0% {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}

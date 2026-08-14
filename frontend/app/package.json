@@ -1,0 +1,48 @@
+{
+  "name": "app",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "oxlint",
+    "preview": "vite preview",
+    "seed": "tsx --no-cache scripts/seed.ts"
+  },
+  "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@fontsource-variable/archivo": "^5.3.0",
+    "@fontsource-variable/jetbrains-mono": "^5.3.0",
+    "@fontsource/archivo-black": "^5.3.0",
+    "@fontsource/instrument-serif": "^5.3.0",
+    "@tanstack/react-query": "^5.101.4",
+    "animejs": "^4.5.0",
+    "leaflet": "^1.9.4",
+    "lenis": "^1.3.26",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-router-dom": "^7.18.2",
+    "sonner": "^2.0.7"
+  },
+  "devDependencies": {
+    "@ai-hero/sandcastle": "^0.12.0",
+    "@playwright/test": "^1.62.1",
+    "@tailwindcss/vite": "^4.3.3",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/leaflet": "^1.9.22",
+    "@types/node": "^24.13.3",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.5",
+    "evalite": "^0.19.0",
+    "jsdom": "^26.1.0",
+    "oxlint": "^1.75.0",
+    "tailwindcss": "^4.3.3",
+    "tsx": "^4.23.11",
+    "typescript": "~6.0.2",
+    "vite": "^8.2.0",
+    "vitest": "^4.1.10"
+  }
+}

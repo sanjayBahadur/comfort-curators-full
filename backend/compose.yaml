@@ -1,0 +1,158 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: api
+      # Empty by default -- a plain `docker compose up` (a real deployment)
+      # never compiles in the acceptance-only session-fixture route. Only
+      # scripts/run-phase sets CC_BUILD_TAGS=acceptance, and only for gate
+      # verification.
+      args:
+        BUILD_TAGS: ${CC_BUILD_TAGS:-}
+    ports:
+      - "127.0.0.1:${CC_HTTP_PORT:-8080}:8080"
+    environment:
+      - CC_HTTP_PORT=8080
+      - CC_LOG_LEVEL=${CC_LOG_LEVEL:-info}
+      - CC_DB_USER=${CC_DB_USER:-ccuser}
+      - CC_DB_PASS=${CC_DB_PASS:-ccpass}
+      - CC_DB_NAME=${CC_DB_NAME:-comfort_curators}
+      - CC_DB_HOST=${CC_DB_HOST:-postgres}
+      - CC_DB_PORT=${CC_DB_PORT:-5432}
+      - CC_S3_HOST=${CC_S3_HOST:-minio}
+      # Fixed for the same reason as CC_MODEL_PORT below: minio's container
+      # always listens on 9000 internally, independent of any host-side
+      # port override in its own ${CC_S3_PORT:-9000}:9000 mapping.
+      - CC_S3_PORT=9000
+      - CC_MODEL_HOST=${CC_MODEL_HOST:-model-stub}
+      # Fixed, not ${CC_MODEL_PORT:-...}: that variable name is also used
+      # below for model-stub's own *host* port mapping
+      # (${CC_MODEL_PORT:-8081}:8080). Reusing it here would make an
+      # override intended for host-side access also (wrongly) redirect
+      # container-to-container traffic, which always targets the
+      # container's fixed internal port regardless of how the host
+      # mapping is configured.
+      - CC_MODEL_PORT=8080
+      # Which (provider, model) a new Superhost run is stamped with. Only
+      # metadata read by the api process -- the worker is what actually
+      # calls out (see CC_MODEL_URL/CC_MODEL_API_KEY below). Left at the
+      # deterministic stub pair by default so a plain checkout with no
+      # secrets in .env still runs end to end; set both in .env to switch
+      # a real (provider, model) pair on for real reasoning.
+      - CC_SUPERHOST_PROVIDER=${CC_SUPERHOST_PROVIDER:-model-stub}
+      - CC_SUPERHOST_MODEL=${CC_SUPERHOST_MODEL:-stub-v1}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health/live"]
+      interval: 5s
+      timeout: 2s
+      retries: 3
+      start_period: 5s
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: worker
+    environment:
+      - CC_LOG_LEVEL=${CC_LOG_LEVEL:-info}
+      - CC_DB_USER=${CC_DB_USER:-ccuser}
+      - CC_DB_PASS=${CC_DB_PASS:-ccpass}
+      - CC_DB_NAME=${CC_DB_NAME:-comfort_curators}
+      - CC_DB_HOST=${CC_DB_HOST:-postgres}
+      - CC_DB_PORT=${CC_DB_PORT:-5432}
+      - CC_S3_HOST=${CC_S3_HOST:-minio}
+      - CC_S3_PORT=9000
+      - CC_MODEL_HOST=${CC_MODEL_HOST:-model-stub}
+      - CC_MODEL_PORT=8080
+      # Empty by default: app.go only builds the CC_MODEL_HOST/PORT stub URL
+      # when this is unset, so a plain checkout still talks to the local
+      # model-stub container. Set both in .env (never committed -- see
+      # .gitignore) to point the real HTTP provider at a real, billed
+      # endpoint instead.
+      - CC_MODEL_URL=${CC_MODEL_URL:-}
+      - CC_MODEL_API_KEY=${CC_MODEL_API_KEY:-}
+      - CC_DEBUG_HTTP_PROVIDER=${CC_DEBUG_HTTP_PROVIDER:-}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  acceptance-seed:
+    profiles: ["acceptance"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: seed
+    environment:
+      - CC_ENV=acceptance
+      - CC_BASE_URL=${CC_BASE_URL:-http://127.0.0.1:${CC_HTTP_PORT:-8080}}
+      - CC_FIXTURE_PATH=/runtime/acceptance-fixture.json
+    working_dir: /runtime
+    volumes:
+      - ./.runtime:/runtime
+
+  model-stub:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: model-stub
+    ports:
+      - "127.0.0.1:${CC_MODEL_PORT:-8081}:8080"
+    environment:
+      - CC_MODEL_MODE=${CC_MODEL_MODE:-success}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health/live"]
+      interval: 5s
+      timeout: 2s
+      retries: 3
+      start_period: 5s
+
+  minio:
+    image: minio/minio:RELEASE.2024-01-16T16-07-38Z
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${CC_MINIO_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${CC_MINIO_PASS:-minioadmin}
+    ports:
+      - "127.0.0.1:${CC_S3_PORT:-9000}:9000"
+      - "127.0.0.1:${CC_MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - miniodata:/data
+    healthcheck:
+      # This image has no curl/wget, only mc (MinIO's own client) and
+      # busybox utilities. curl always failed with "executable file not
+      # found", permanently marking the container unhealthy even when
+      # MinIO itself was serving traffic fine.
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 2s
+      retries: 5
+      start_period: 10s
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${CC_DB_USER:-ccuser}
+      POSTGRES_PASSWORD: ${CC_DB_PASS:-ccpass}
+      POSTGRES_DB: ${CC_DB_NAME:-comfort_curators}
+    ports:
+      - "127.0.0.1:${CC_DB_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${CC_DB_USER:-ccuser} -d ${CC_DB_NAME:-comfort_curators}"]
+      interval: 2s
+      timeout: 2s
+      retries: 5
+      start_period: 5s
+
+volumes:
+  pgdata:
+  miniodata:

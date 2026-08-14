@@ -1,0 +1,3 @@
+-- 001_initial_schema_snapshot
+-- Initial migration establishing the forward-only migration baseline.
+-- Future migrations will extend past this foundation marker.

@@ -1,0 +1,211 @@
+.cookie-slip {
+  position: fixed;
+  z-index: 90;
+  right: auto;
+  bottom: 24px;
+  left: 24px;
+  display: grid;
+  width: min(420px, calc(100vw - 48px));
+  padding: 0 24px 18px;
+  overflow: hidden;
+  border: var(--rule);
+  background: var(--paper);
+  color: var(--ink-body);
+  transform: rotate(-2deg);
+  transform-origin: bottom left;
+  animation: cookie-slip-enter 500ms var(--ease-overshoot) both;
+  isolation: isolate;
+}
+
+.cookie-slip::after {
+  position: absolute;
+  z-index: -1;
+  top: -1px;
+  right: -1px;
+  bottom: -1px;
+  width: 14px;
+  background: var(--paper);
+  clip-path: polygon(0 0, 100% 3%, 14% 8%, 88% 15%, 8% 22%, 94% 30%, 10% 38%, 92% 46%, 5% 54%, 94% 62%, 12% 70%, 90% 78%, 6% 86%, 100% 94%, 0 100%);
+  content: "";
+}
+
+.cookie-slip-tape {
+  position: absolute;
+  z-index: 2;
+  right: -28px;
+  bottom: 14px;
+  width: 150px;
+  height: 24px;
+  background: var(--ink);
+  opacity: 0.06;
+  filter: blur(2px);
+  pointer-events: none;
+  transform: rotate(-6deg);
+}
+
+.cookie-slip-halftone {
+  position: absolute;
+  top: 12px;
+  right: 22px;
+  width: 82px;
+  height: 54px;
+  background-image: repeating-radial-gradient(circle, var(--ink) 0 1.5px, transparent 1.5px 4px);
+  background-size: 4px 4px;
+  opacity: 0.18;
+  pointer-events: none;
+}
+
+.cookie-slip-header {
+  width: fit-content;
+  margin: -1px 0 24px -12px;
+  padding: 10px 16px 9px;
+  background: var(--red);
+  color: var(--paper);
+  font-family: var(--font-shout);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  transform: rotate(1.5deg);
+}
+
+.cookie-slip-header span {
+  padding: 0 4px;
+  font-family: var(--font-meta);
+  font-weight: 400;
+}
+
+.cookie-slip-copy {
+  max-width: 330px;
+  margin: 0 0 22px;
+  font-family: var(--font-ui);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.cookie-slip-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.cookie-slip-actions button {
+  min-height: 42px;
+  padding: 8px 10px;
+  border: var(--rule);
+  background: var(--ink);
+  color: var(--paper);
+  font-family: var(--font-meta);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  line-height: 1.1;
+  cursor: pointer;
+}
+
+.cookie-slip-actions button + button {
+  background: transparent;
+  color: var(--ink);
+}
+
+.cookie-slip-actions button:hover {
+  background: var(--red);
+  color: var(--paper);
+}
+
+.cookie-slip-actions button:focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: 3px;
+}
+
+.cookie-slip-footer {
+  margin-top: 18px;
+  color: var(--ink-60);
+  font-family: var(--font-meta);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+}
+
+@keyframes cookie-slip-enter {
+  from {
+    opacity: 0;
+    transform: translateY(32px) rotate(-2deg);
+    clip-path: inset(0 0 100% 0);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) rotate(-2deg);
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@keyframes cookie-slip-exit {
+  from {
+    opacity: 1;
+    clip-path: inset(0 0 0 0);
+    transform: translateY(0) rotate(-2deg);
+  }
+  to {
+    opacity: 0;
+    clip-path: inset(0 100% 0 0);
+    transform: translateY(12px) rotate(3deg);
+  }
+}
+
+.cookie-slip-exiting {
+  pointer-events: none;
+  animation: cookie-slip-exit 420ms var(--ease-wipe) both;
+}
+
+@media (max-width: 560px) {
+  .cookie-slip {
+    right: 16px;
+    bottom: 16px;
+    left: 16px;
+    width: auto;
+    padding-right: 20px;
+    padding-left: 20px;
+  }
+
+  .cookie-slip-header {
+    font-size: 10px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cookie-slip,
+  .cookie-slip-exiting {
+    transform: none;
+  }
+
+  .cookie-slip {
+    animation-name: cookie-slip-reduced-enter;
+    animation-duration: 180ms;
+  }
+
+  .cookie-slip-exiting {
+    animation-name: cookie-slip-reduced-exit;
+    animation-duration: 180ms;
+  }
+}
+
+@keyframes cookie-slip-reduced-enter {
+  from {
+    opacity: 0;
+    clip-path: inset(0 0 100% 0);
+  }
+  to {
+    opacity: 1;
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@keyframes cookie-slip-reduced-exit {
+  from {
+    opacity: 1;
+    clip-path: inset(0 0 0 0);
+  }
+  to {
+    opacity: 0;
+    clip-path: inset(0 100% 0 0);
+  }
+}

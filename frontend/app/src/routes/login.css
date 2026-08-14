@@ -1,0 +1,372 @@
+.access-page {
+  min-height: 100svh;
+  background: var(--paper);
+  color: var(--ink);
+}
+
+@media (min-width: 701px) {
+  .access-page {
+    display: grid;
+    height: 100svh;
+    min-height: 0;
+    overflow: hidden;
+    grid-template-rows: 64px minmax(0, 1fr) clamp(250px, 34svh, 304px);
+  }
+}
+
+.access-page .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Login's equivalent of the fixed top-right anchor button every other page
+   uses for Superhost -- that button is hidden on /login, so this corner is
+   free. A real button, not text buried in the meta row. */
+.access-pitch-button {
+  position: fixed;
+  z-index: 91;
+  top: 16px;
+  right: 16px;
+  display: flex;
+  min-height: 36px;
+  padding: 0 14px;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--ink);
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-meta);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition: background 150ms var(--ease-expo-out), color 150ms var(--ease-expo-out);
+}
+
+.access-pitch-button b { font-weight: 700; }
+
+.access-pitch-button:hover {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.access-pitch-button:focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: 3px;
+}
+
+@media (max-width: 640px) {
+  .access-pitch-button {
+    top: 12px;
+    right: 12px;
+    min-height: 32px;
+    padding: 0 10px;
+    font-size: 9px;
+  }
+}
+
+.access-meta {
+  display: grid;
+  min-height: 64px;
+  padding: 0 40px;
+  border-bottom: var(--rule);
+  align-items: center;
+  grid-template-columns: repeat(2, 1fr);
+  font-family: var(--font-meta);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.access-meta span:last-child { text-align: right; }
+
+/* The old top-left/top-right registration "+" marks (.registration-frame,
+   shared with every other page -- see src/index.css) sat right where this
+   page's own meta text and pitch button already are, reading as a stray,
+   unexplained mark rather than the intentional print-registration device
+   it is elsewhere. Switched off on this page only; every other page that
+   still wants it keeps it. */
+.access-page.registration-frame::before,
+.access-page.registration-frame::after {
+  content: none;
+}
+
+.access-intro {
+  position: relative;
+  display: flex;
+  min-height: min(360px, 48svh);
+  padding: clamp(40px, 7vw, 96px) clamp(24px, 7vw, 112px) 48px;
+  border-bottom: var(--rule);
+  overflow: hidden;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+@media (min-width: 701px) {
+  .access-intro {
+    min-height: 0;
+    padding-top: clamp(24px, 5svh, 64px);
+    padding-bottom: clamp(20px, 4svh, 40px);
+  }
+}
+
+.access-headline {
+  position: relative;
+  z-index: 1;
+  /* Preserve the vertical footprint of the removed access deck so the
+     hero/role boundary stays in the same place at the target viewport. */
+  padding-bottom: clamp(40px, 10svh, 91px);
+  /* This is a block-level flex child with no declared width, so it
+     stretches to the full width of .access-intro -- including the area
+     the hero image/replay button occupies on the right -- even though
+     its only visible content (the h1) sits on the left. Combined with
+     z-index: 1, that invisible full-width box sat in front of the
+     hero button (whose own z-index: 1 only wins within its parent
+     .access-hero-media's *local* stacking context, not against this
+     sibling), silently swallowing every click meant for the button --
+     confirmed live: Playwright's click on the button's own center
+     point hit this div instead every time. Nothing in here is
+     interactive, so it never needs to intercept a pointer event. */
+  pointer-events: none;
+}
+
+.access-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(57.6px, 10.8vw, 144px);
+  font-weight: 400;
+  letter-spacing: -0.06em;
+  line-height: 0.82;
+}
+
+.access-title em { font-weight: 400; }
+
+.access-hero-media {
+  position: absolute;
+  z-index: 0;
+  top: 0;
+  right: 0;
+  height: 100%;
+  aspect-ratio: 3 / 2;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.access-hero-key {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  /* Approximate the connected architecture instead of making the PNG's
+     entire rectangular background clickable. */
+  clip-path: polygon(
+    39% 0,
+    100% 0,
+    100% 100%,
+    73% 100%,
+    63% 89%,
+    39% 76%,
+    0 58%,
+    38% 43%,
+    9% 24%
+  );
+  pointer-events: auto;
+}
+
+.access-hero-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.access-hero-key:focus-visible {
+  outline: 3px solid var(--red);
+  outline-offset: -3px;
+}
+
+.access-role-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+}
+
+@media (min-width: 701px) {
+  .access-roles,
+  .access-role-grid {
+    min-height: 0;
+    height: 100%;
+  }
+}
+
+/* This is package-shop.css's own .shop-product-card hover pattern
+   (already in this codebase, already established, already "really
+   nice" -- outline + a halftone-dot texture fade-in + a -2px lift),
+   adapted here with the per-role accent color driving the outline and
+   the dots instead of always --ink. repeating-radial-gradient for a
+   halftone screen is an explicit ART-DIRECTION.md pattern (§7), not a
+   decorative gradient -- distinct from the flat linear-gradient/
+   box-shadow ban elsewhere. */
+.access-role-card {
+  --role-accent: var(--ink);
+  position: relative;
+  display: grid;
+  min-height: 304px;
+  padding: 24px 28px 28px;
+  border: 0;
+  border-right: var(--rule);
+  border-top: 1px solid var(--ink);
+  background: var(--paper);
+  color: var(--ink);
+  cursor: pointer;
+  font-family: var(--font-ui);
+  grid-template-rows: auto auto auto 1fr auto;
+  text-align: left;
+  transition: transform 180ms var(--ease-expo-out);
+}
+
+@media (min-width: 701px) {
+  .access-role-card {
+    min-height: 0;
+    padding-top: clamp(16px, 2.6svh, 24px);
+    padding-bottom: clamp(18px, 3svh, 28px);
+  }
+
+  .access-role-label { margin-top: clamp(16px, 3svh, 28px); }
+  .access-role-lane { margin-top: clamp(10px, 2svh, 18px); }
+}
+
+.access-role-card--owner { --role-accent: #2851d1; }
+.access-role-card--staff { --role-accent: var(--red); }
+.access-role-card--guest { --role-accent: #00b34f; }
+
+.access-role-card:last-child { border-right: 0; }
+
+.access-role-card::after {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  background-image: repeating-radial-gradient(circle, var(--role-accent) 0 1.5px, transparent 1.5px 4px);
+  content: "";
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms linear;
+}
+
+.access-role-card:hover:not(:disabled) {
+  z-index: 2;
+  outline: 2px solid var(--role-accent);
+  outline-offset: -2px;
+  transform: translateY(-2px);
+}
+
+.access-role-card:hover:not(:disabled)::after { opacity: 0.12; }
+
+.access-role-card:hover:not(:disabled) .access-role-action {
+  border-top-color: var(--role-accent);
+  color: var(--role-accent);
+  transition: color 220ms var(--ease-expo-out), border-top-color 220ms var(--ease-expo-out);
+}
+
+.access-role-card:focus-visible {
+  outline: 3px solid var(--red);
+  outline-offset: -3px;
+}
+
+.access-role-card:disabled {
+  cursor: wait;
+  opacity: 0.62;
+}
+
+.access-role-index,
+.access-role-lane,
+.access-role-action {
+  font-family: var(--font-meta);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.access-role-label {
+  margin-top: 28px;
+  font-family: var(--font-shout);
+  font-size: clamp(26px, 3vw, 42px);
+  letter-spacing: -0.04em;
+  line-height: 0.95;
+  text-transform: uppercase;
+}
+
+.access-role-lane { margin-top: 18px; }
+
+.access-role-description {
+  max-width: 30ch;
+  margin-top: 10px;
+  color: var(--ink-60);
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.access-role-action {
+  padding-top: 16px;
+  border-top: 1px solid currentColor;
+}
+
+@media (max-width: 700px) {
+  .access-meta {
+    min-height: 112px;
+    padding: 42px 20px 16px;
+    gap: 8px;
+    grid-template-columns: 1fr;
+  }
+
+  .access-meta span:last-child { text-align: left; }
+
+  .access-intro {
+    min-height: 320px;
+    padding: 48px 20px 36px;
+  }
+
+  .access-headline { padding-bottom: 64px; }
+
+  /* At desktop widths there's enough horizontal room for the headline
+     (left) and the hero image (right, anchored top:0/height:100%) to
+     sit side by side without touching. Below 700px there isn't --
+     confirmed live: the image, forced to height:100% of a 320px-tall
+     section, rendered ~480px wide (its 3:2 aspect ratio) and sat
+     directly over "keys.". Moving it below the headline instead of
+     beside it, at a fixed modest height, is a real fix rather than a
+     smaller version of the same collision. */
+  .access-hero-media {
+    top: auto;
+    right: 0;
+    bottom: 0;
+    height: 132px;
+    width: auto;
+  }
+
+  .access-role-grid { grid-template-columns: 1fr; }
+
+  .access-role-card {
+    min-height: 250px;
+    border-right: 0;
+    border-bottom: var(--rule);
+  }
+
+  .access-role-card:last-child { border-bottom: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .access-role-card { transition: none; }
+  .access-role-card:hover:not(:disabled) { transform: none; }
+}

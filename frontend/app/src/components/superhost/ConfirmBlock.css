@@ -1,0 +1,66 @@
+.superhost-terminal .superhost-confirm-block {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+  line-height: 1.5;
+}
+
+.superhost-terminal .superhost-confirm-summary {
+  display: flex;
+  min-width: max-content;
+}
+
+.superhost-terminal .superhost-confirm-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-left: 1.25em;
+}
+
+.superhost-terminal .superhost-confirm-actions button {
+  border: 1px solid var(--phosphor);
+  border-radius: 0;
+  background: var(--ink);
+  color: var(--phosphor);
+  cursor: pointer;
+  font: inherit;
+  padding: 5px 9px;
+}
+
+.superhost-terminal .superhost-confirm-actions button:hover:not(:disabled),
+.superhost-terminal .superhost-confirm-actions button:focus-visible {
+  background: var(--phosphor);
+  color: var(--ink);
+  outline: none;
+}
+
+.superhost-terminal .superhost-confirm-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.superhost-terminal .superhost-confirm-label {
+  color: var(--phosphor-dim);
+  font-size: 0.85em;
+}
+
+.superhost-terminal .superhost-confirm-status,
+.superhost-terminal .superhost-confirm-error {
+  margin: 0;
+  padding-left: 1.25em;
+}
+
+/* A failed decision-post (network hiccup, transient 500) is an error in the
+   decision flow, not a policy denial -- distinct from the denial line rule in
+   Terminal.css. Both are the terminal's red "refusal/error" signal, so this is
+   not a second denial treatment and not terminal chrome; keep both on --red. */
+.superhost-terminal .superhost-confirm-error {
+  color: var(--red);
+}
+
+.superhost-terminal .superhost-confirm-block-result {
+  display: flex;
+  min-width: max-content;
+  color: var(--phosphor);
+}

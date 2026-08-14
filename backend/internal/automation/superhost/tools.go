@@ -1,0 +1,398 @@
+package superhost
+
+import (
+	"encoding/json"
+	"errors"
+	"fmt"
+)
+
+var (
+	ErrToolNotAllowlisted  = errors.New("superhost: tool not in allowlist")
+	ErrToolDirectMutation  = errors.New("superhost: direct mutation tools do not exist")
+	ErrToolProhibited      = errors.New("superhost: tool exercises prohibited authority")
+	ErrToolVersionMismatch = errors.New("superhost: tool schema version not recognized")
+	ErrToolScopeMismatch   = errors.New("superhost: tool tenant/property must derive from run context")
+)
+
+const AgentKindSuperhost = "superhost"
+
+type ToolKind string
+
+const (
+	ToolKindRead     ToolKind = "read"
+	ToolKindPropose  ToolKind = "propose"
+	ToolKindRequest  ToolKind = "request"
+	ToolKindUIAction ToolKind = "ui_action"
+	ToolKindRestrict ToolKind = "restricted"
+)
+
+type ToolAudience string
+
+const (
+	// ToolAudienceInternal and ToolAudienceUI are role-agnostic: every
+	// account, regardless of role, can use tools carrying either of
+	// these (see policy.go's audienceAllowed). Everything else is
+	// role-scoped -- a tool must list the audience matching an actor's
+	// real role (owner/staff/guest, resolved fresh from IAM at policy
+	// evaluation time) to be usable by that actor.
+	ToolAudienceInternal   ToolAudience = "internal"
+	ToolAudienceOwner      ToolAudience = "owner"
+	ToolAudienceOperations ToolAudience = "operations"
+	ToolAudienceGuest      ToolAudience = "guest"
+	ToolAudienceUI         ToolAudience = "ui"
+)
+
+const ToolSchemaVersionCurrent = "v1"
+
+type ToolDefinition struct {
+	Name          string   `json:"name"`
+	SchemaVersion string   `json:"schema_version"`
+	Kind          ToolKind `json:"kind"`
+	// Audiences: which role(s) can use this tool. A tool naming more than
+	// one audience (e.g. propose_restock naming both operations and
+	// guest) is intentional -- the same real action can be a legitimate
+	// ask from more than one role.
+	Audiences        []ToolAudience `json:"audiences"`
+	Description      string         `json:"description"`
+	RequiresApproval bool           `json:"requires_approval"`
+	ApprovalKind     string         `json:"approval_kind,omitempty"`
+	Idempotent       bool           `json:"idempotent"`
+}
+
+func (d ToolDefinition) IsMutation() bool {
+	switch d.Kind {
+	case ToolKindPropose, ToolKindRequest, ToolKindRestrict:
+		return true
+	default:
+		return false
+	}
+}
+
+var superhostToolRegistry = func() map[string]ToolDefinition {
+	reg := []ToolDefinition{
+		{
+			Name:             "get_property_operating_summary",
+			SchemaVersion:    ToolSchemaVersionCurrent,
+			Kind:             ToolKindRead,
+			Audiences:        []ToolAudience{ToolAudienceInternal},
+			Description:      "Read-only property operating summary from assembled context",
+			RequiresApproval: false,
+			Idempotent:       true,
+		},
+		{
+			Name:             "get_reservation_change",
+			SchemaVersion:    ToolSchemaVersionCurrent,
+			Kind:             ToolKindRead,
+			Audiences:        []ToolAudience{ToolAudienceInternal},
+			Description:      "Read reservation changes from assembled context",
+			RequiresApproval: false,
+			Idempotent:       true,
+		},
+		{
+			Name:             "propose_turnover_ticket",
+			SchemaVersion:    ToolSchemaVersionCurrent,
+			Kind:             ToolKindPropose,
+			Audiences:        []ToolAudience{ToolAudienceOperations},
+			Description:      "Propose a new turnover ticket for operations review",
+			RequiresApproval: true,
+			ApprovalKind:     "operations",
+			Idempotent:       true,
+		},
+		{
+			Name:             "propose_inspection_ticket",
+			SchemaVersion:    ToolSchemaVersionCurrent,
+			Kind:             ToolKindPropose,
+			Audiences:        []ToolAudience{ToolAudienceOperations},
+			Description:      "Propose an inspection ticket for operations review",
+			RequiresApproval: true,
+			ApprovalKind:     "operations",
+			Idempotent:       true,
+		},
+		{
+			Name:          "propose_restock",
+			SchemaVersion: ToolSchemaVersionCurrent,
+			Kind:          ToolKindPropose,
+			// Also guest: matches the real "Restock an essential" option
+			// already on the guest Stay page's own direct ticket form
+			// (see GUEST_TICKET_TYPES in stay.tsx) -- a guest asking
+			// Superhost for the same thing it can already ask for
+			// directly is a legitimate, real use.
+			Audiences:        []ToolAudience{ToolAudienceOperations, ToolAudienceGuest},
+			Description:      "Propose a stock restock action for inventory review",
+			RequiresApproval: true,
+			ApprovalKind:     "operations",
+			Idempotent:       true,
+		},
+		{
+			Name:          "propose_maintenance_request",
+			SchemaVersion: ToolSchemaVersionCurrent,
+			Kind:          ToolKindPropose,
+			// Also guest: matches GUEST_TICKET_TYPES' "Maintenance
+			// request" option, same reasoning as propose_restock above.
+			Audiences:        []ToolAudience{ToolAudienceOperations, ToolAudienceGuest},
+			Description:      "Propose a maintenance request for triage",
+			RequiresApproval: true,
+			ApprovalKind:     "operations",
+			Idempotent:       true,
+		},
+		{
+			Name:          "propose_incident_report",
+			SchemaVersion: ToolSchemaVersionCurrent,
+			Kind:          ToolKindPropose,
+			// Matches GUEST_TICKET_TYPES' "Something needs attention"
+			// option -- a real guest concern with no prior Superhost-
+			// callable equivalent before this.
+			Audiences:        []ToolAudience{ToolAudienceOperations, ToolAudienceGuest},
+			Description:      "Propose an incident report for operations triage",
+			RequiresApproval: true,
+			ApprovalKind:     "operations",
+			Idempotent:       true,
+		},
+		{
+			Name:             "request_owner_approval",
+			SchemaVersion:    ToolSchemaVersionCurrent,
+			Kind:             ToolKindRequest,
+			Audiences:        []ToolAudience{ToolAudienceOwner},
+			Description:      "Request owner approval for a proposed action",
+			RequiresApproval: true,
+			ApprovalKind:     "owner",
+			Idempotent:       true,
+		},
+		{
+			Name:             "request_operations_approval",
+			SchemaVersion:    ToolSchemaVersionCurrent,
+			Kind:             ToolKindRequest,
+			Audiences:        []ToolAudience{ToolAudienceOperations},
+			Description:      "Request operations team approval for a proposed action",
+			RequiresApproval: true,
+			ApprovalKind:     "operations",
+			Idempotent:       true,
+		},
+		{
+			Name:             "send_approved_notification",
+			SchemaVersion:    ToolSchemaVersionCurrent,
+			Kind:             ToolKindPropose,
+			Audiences:        []ToolAudience{ToolAudienceInternal},
+			Description:      "Send an approved notification to a recipient",
+			RequiresApproval: true,
+			ApprovalKind:     "operations",
+			Idempotent:       true,
+		},
+		{
+			Name:             "assemble_document_packet",
+			SchemaVersion:    ToolSchemaVersionCurrent,
+			Kind:             ToolKindPropose,
+			Audiences:        []ToolAudience{ToolAudienceInternal},
+			Description:      "Assemble a document packet from specified records",
+			RequiresApproval: true,
+			ApprovalKind:     "operations",
+			Idempotent:       true,
+		},
+		{
+			Name:             "summarize_incident",
+			SchemaVersion:    ToolSchemaVersionCurrent,
+			Kind:             ToolKindRead,
+			Audiences:        []ToolAudience{ToolAudienceInternal},
+			Description:      "Read-only incident summary from assembled context",
+			RequiresApproval: false,
+			Idempotent:       true,
+		},
+		{
+			Name:             "escalate_exception",
+			SchemaVersion:    ToolSchemaVersionCurrent,
+			Kind:             ToolKindPropose,
+			Audiences:        []ToolAudience{ToolAudienceOperations},
+			Description:      "Escalate an exception for manual review",
+			RequiresApproval: true,
+			ApprovalKind:     "operations",
+			Idempotent:       true,
+		},
+		{
+			Name:             "ui_focus",
+			SchemaVersion:    ToolSchemaVersionCurrent,
+			Kind:             ToolKindUIAction,
+			Audiences:        []ToolAudience{ToolAudienceUI},
+			Description:      "Focus a registered UI element in the user's current browser view",
+			RequiresApproval: false,
+			Idempotent:       false,
+		},
+		{
+			Name:             "ui_set_value",
+			SchemaVersion:    ToolSchemaVersionCurrent,
+			Kind:             ToolKindUIAction,
+			Audiences:        []ToolAudience{ToolAudienceUI},
+			Description:      "Set the value of a registered UI form element in the user's current browser view",
+			RequiresApproval: false,
+			Idempotent:       false,
+		},
+		{
+			Name:             "ui_click",
+			SchemaVersion:    ToolSchemaVersionCurrent,
+			Kind:             ToolKindUIAction,
+			Audiences:        []ToolAudience{ToolAudienceUI},
+			Description:      "Click a registered UI element in the user's current browser view",
+			RequiresApproval: false,
+			Idempotent:       false,
+		},
+		{
+			Name:             "ui_scroll_to",
+			SchemaVersion:    ToolSchemaVersionCurrent,
+			Kind:             ToolKindUIAction,
+			Audiences:        []ToolAudience{ToolAudienceUI},
+			Description:      "Scroll a registered UI element into view in the user's current browser view",
+			RequiresApproval: false,
+			Idempotent:       false,
+		},
+		{
+			Name:             "ui_open_panel",
+			SchemaVersion:    ToolSchemaVersionCurrent,
+			Kind:             ToolKindUIAction,
+			Audiences:        []ToolAudience{ToolAudienceUI},
+			Description:      "Open a registered UI panel in the user's current browser view",
+			RequiresApproval: false,
+			Idempotent:       false,
+		},
+		{
+			Name:             "list_my_tasks",
+			SchemaVersion:    ToolSchemaVersionCurrent,
+			Kind:             ToolKindRead,
+			Audiences:        []ToolAudience{ToolAudienceInternal},
+			Description:      "List this account's own Superhost task ledger: open items and recently resolved ones",
+			RequiresApproval: false,
+			Idempotent:       true,
+		},
+		{
+			Name:          "log_task",
+			SchemaVersion: ToolSchemaVersionCurrent,
+			Kind:          ToolKindPropose,
+			Audiences:     []ToolAudience{ToolAudienceInternal},
+			Description:   "Note something this account's Superhost still needs to do -- its own scratchpad, not a real business record",
+			// Not gated behind human approval: this only writes to
+			// Superhost's own per-account memory (see
+			// migrations/005_superhost_account_tasks.sql), never real
+			// business state, so there's nothing here for a human to
+			// approve or deny.
+			RequiresApproval: false,
+			Idempotent:       false,
+		},
+		{
+			Name:             "resolve_task",
+			SchemaVersion:    ToolSchemaVersionCurrent,
+			Kind:             ToolKindPropose,
+			Audiences:        []ToolAudience{ToolAudienceInternal},
+			Description:      "Mark one of this account's own logged tasks done or blocked",
+			RequiresApproval: false,
+			// Genuinely idempotent: it's an UPDATE keyed by task_id, so
+			// calling it again with the same status just re-sets the same
+			// state rather than creating anything new.
+			Idempotent: true,
+		},
+	}
+
+	m := make(map[string]ToolDefinition, len(reg))
+	for _, td := range reg {
+		m[td.Name] = td
+	}
+	return m
+}()
+
+var prohibitedAuthorityKeywords = []string{
+	"direct storage mutation",
+	"unapproved purchase or order",
+	"self approval",
+	"payment, refund, journal, or bank detail mutation",
+	"legal signature, certification, or filing",
+	"unrestricted access-secret disclosure",
+	"worker rejection, suspension, termination, wage, or contract change",
+	"high-risk work verification",
+	"hard deletion or evidence rewrite",
+}
+
+var prohibitedToolNamePrefixes = []string{
+	"delete_", "hard_delete_", "purge_", "wipe_", "erase_",
+	"pay_", "refund_", "charge_", "transfer_", "disburse_",
+	"sign_", "certify_", "file_legal_",
+	"disclose_access_", "read_secret_", "export_secret_",
+	"terminate_worker_", "suspend_worker_", "reject_worker_",
+	"create_order_", "approve_order_", "place_order_",
+	"mutate_", "write_", "update_", "insert_", "upsert_",
+	"set_", "put_", "patch_",
+}
+
+func IsToolProhibited(name string) bool {
+	for _, prefix := range prohibitedToolNamePrefixes {
+		if len(name) >= len(prefix) && name[:len(prefix)] == prefix {
+			return true
+		}
+	}
+	return false
+}
+
+func LookupTool(name string) (ToolDefinition, error) {
+	if IsToolProhibited(name) {
+		return ToolDefinition{}, fmt.Errorf("%w: %s", ErrToolProhibited, name)
+	}
+	def, ok := superhostToolRegistry[name]
+	if !ok {
+		return ToolDefinition{}, fmt.Errorf("%w: %s", ErrToolNotAllowlisted, name)
+	}
+	if def.Kind == ToolKindRestrict {
+		return ToolDefinition{}, fmt.Errorf("%w: %s", ErrToolDirectMutation, name)
+	}
+	return def, nil
+}
+
+func ValidateToolVersion(name, version string) error {
+	def, err := LookupTool(name)
+	if err != nil {
+		return err
+	}
+	if def.SchemaVersion != version {
+		return fmt.Errorf("%w: %s expects %s, got %s", ErrToolVersionMismatch, name, def.SchemaVersion, version)
+	}
+	return nil
+}
+
+func AllowedToolNames() []string {
+	names := make([]string, 0, len(superhostToolRegistry))
+	for name := range superhostToolRegistry {
+		names = append(names, name)
+	}
+	return names
+}
+
+type ToolCallInput struct {
+	ToolName       string          `json:"tool_name"`
+	Version        string          `json:"version"`
+	Arguments      json.RawMessage `json:"arguments"`
+	CallID         string          `json:"call_id"`
+	IdempotencyKey string          `json:"idempotency_key,omitempty"`
+}
+
+func (in ToolCallInput) ValidateScope(tenantID, propertyID string) error {
+	var args map[string]any
+	if err := json.Unmarshal(in.Arguments, &args); err != nil {
+		return fmt.Errorf("superhost: invalid tool arguments: %w", err)
+	}
+
+	if t, ok := args["tenant_id"]; ok {
+		if ts, ok := t.(string); ok && ts != "" && ts != tenantID {
+			return fmt.Errorf("%w: tenant_id in arguments (%s) must match run context (%s)", ErrToolScopeMismatch, ts, tenantID)
+		}
+	}
+	// propertyID == "" means this run is portfolio-scoped (see
+	// ContextAssembler.AssemblePortfolio), not locked to one property --
+	// a tool call naming any property_id is expected there, not a scope
+	// violation. It still isn't a blank check: the tool executor (which
+	// has real DB access, unlike this pure function) verifies the named
+	// property actually belongs to this tenant before anything executes.
+	if propertyID != "" {
+		if p, ok := args["property_id"]; ok {
+			if ps, ok := p.(string); ok && ps != "" && ps != propertyID {
+				return fmt.Errorf("%w: property_id in arguments (%s) must match run context (%s)", ErrToolScopeMismatch, ps, propertyID)
+			}
+		}
+	}
+
+	return nil
+}

@@ -1,0 +1,98 @@
+.superhost-terminal {
+  --phosphor: #00FF66;
+  --phosphor-dim: #00994d;
+  background: var(--ink);
+  color: var(--phosphor);
+  font-family: var(--font-meta);
+  border: 1px solid var(--ink);
+  border-radius: 0;
+  padding: 24px;
+  /* overflow: auto alone does nothing without a height bound -- the
+     terminal just grew forever with the page, dragging the composer
+     out of view as history piled up, which is what actually read as
+     "unscrollable, something is blocking the scroll." Bounding the
+     height here makes this its own fixed-size scrolling console; the
+     composer that follows it in SuperhostMount stays put below,
+     always reachable. */
+  max-height: 420px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+}
+
+.superhost-terminal-lines {
+  display: grid;
+  /* An implicit auto-sized grid column grows to fit its widest child's
+     unwrapped content, same failure mode as a flex item's default
+     min-width: auto -- it made the *grid itself* wider than the
+     terminal, which overflow-x: hidden on the terminal then clipped
+     instead of fixing, silently cutting off the end of long lines
+     rather than wrapping them. minmax(0, 1fr) is the grid version of
+     min-width: 0: it lets the column -- and everything in it -- actually
+     shrink to the terminal's real width so pre-wrap below can wrap it. */
+  grid-template-columns: minmax(0, 1fr);
+  margin: 0;
+  padding: 0;
+  gap: 8px;
+  list-style: none;
+  white-space: pre-wrap;
+}
+
+.superhost-terminal-line {
+  display: flex;
+  /* No min-width here on purpose -- this used to be min-width:
+     max-content, which forces a flex item to stay at least as wide as
+     its own unwrapped content. That fought directly with
+     white-space: pre-wrap above: every long line pushed the row wider
+     than the terminal instead of wrapping, which is what actually
+     produced the horizontal scrollbar (and made the vertical one feel
+     "blocked" -- the two scrollbars were fighting for the same
+     narrow strip of space). */
+  line-height: 1.5;
+}
+
+.superhost-terminal-prefix {
+  flex: 0 0 auto;
+}
+
+.superhost-terminal-text {
+  /* Flex items default to min-width: auto, which -- like the rule
+     removed above -- also refuses to shrink below the text's
+     unwrapped intrinsic width. min-width: 0 here is what actually
+     lets this span wrap inside the flex row instead of overflowing
+     it. overflow-wrap covers the rest: a single unbroken long token
+     (a thread id, a URL) that's still wider than the line wraps mid-
+     word instead of forcing the row wide again. */
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+
+.superhost-terminal-line-denial {
+  color: var(--red);
+}
+
+.superhost-terminal-line-system {
+  color: var(--phosphor-dim);
+}
+
+.superhost-terminal-cursor {
+  display: inline-block;
+  width: 0.7em;
+  height: 1.1em;
+  margin-top: 8px;
+  background: currentColor;
+  vertical-align: text-bottom;
+  animation: superhost-terminal-cursor-blink 530ms steps(2, start) infinite;
+}
+
+@keyframes superhost-terminal-cursor-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .superhost-terminal-cursor {
+    animation: none;
+  }
+}

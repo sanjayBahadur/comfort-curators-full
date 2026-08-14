@@ -1,0 +1,79 @@
+version: 1
+transport: postgresql_transactional_outbox
+
+envelope:
+  required:
+    - event_id
+    - event_name
+    - event_version
+    - occurred_at
+    - tenant_id
+    - actor_type
+    - actor_id
+    - correlation_id
+    - causation_id
+    - aggregate_type
+    - aggregate_id
+    - aggregate_version
+    - payload
+  optional: [property_id, idempotency_key, trace_id]
+  rules:
+    - occurred_at is UTC
+    - payload never contains plaintext access secrets, credentials, bank data, identity documents, or unrestricted message bodies
+    - consumers reject unknown major versions and idempotently ignore duplicate event_id values
+    - publish intent commits with aggregate state
+
+events:
+  - OwnerOnboardingStarted.v1
+  - PropertyInspectionRecorded.v1
+  - PropertyActivationHeld.v1
+  - PropertyActivated.v1
+  - PropertyLifecycleChanged.v1
+  - ContractAccepted.v1
+  - CalendarFeedPolled.v1
+  - CalendarFeedStale.v1
+  - ReservationImported.v1
+  - ReservationChanged.v1
+  - ReservationCancelled.v1
+  - ReservationConflictDetected.v1
+  - TicketProposed.v1
+  - TicketStateChanged.v1
+  - TicketAssigned.v1
+  - TicketEvidenceSubmitted.v1
+  - TicketVerified.v1
+  - IncidentReported.v1
+  - ServiceRecoveryStarted.v1
+  - WorkerTimeRecorded.v1
+  - WorkerGrievanceSubmitted.v1
+  - AccessGrantIssued.v1
+  - AccessSecretDisclosed.v1
+  - AccessGrantRevoked.v1
+  - AccessHoldCreated.v1
+  - FleetIncidentReported.v1
+  - InventoryMovementPosted.v1
+  - InventoryCountReconciled.v1
+  - ReorderProposalCreated.v1
+  - RequisitionApproved.v1
+  - PurchaseOrderApproved.v1
+  - GoodsReceived.v1
+  - MaintenanceApprovalRequested.v1
+  - MaintenanceCompleted.v1
+  - DocumentVersionAdded.v1
+  - DocumentExpiring.v1
+  - DocumentReviewCompleted.v1
+  - InvoiceIssued.v1
+  - CreditIssued.v1
+  - FinancialApprovalRequested.v1
+  - AccountingExportCreated.v1
+  - CommunicationReviewRequested.v1
+  - CommunicationDelivered.v1
+  - CommunicationFailed.v1
+  - AgentRunQueued.v1
+  - AgentRunStateChanged.v1
+  - AgentToolProposed.v1
+  - AgentToolPolicyDecided.v1
+  - ApprovalRequested.v1
+  - ApprovalDecided.v1
+  - SecurityAnomalyDetected.v1
+
+

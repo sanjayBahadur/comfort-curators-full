@@ -1,0 +1,111 @@
+schema_version: 1
+driver: tests/acceptance/run
+requirements:
+  CC-FND-001:
+    package_glob: internal/platform/**/*_test.go
+    required_files: [go.mod, compose.yaml, Dockerfile, cmd/api/main.go, cmd/worker/main.go]
+    tests:
+      - TestCCFND001EmptyDatabaseMigration
+      - TestCCFND001OutboxCommitAtomicity
+      - TestCCFND001IdempotencyReplay
+      - TestCCFND001PrivateObjectSignedAccess
+      - TestCCFND001APIWorkerStart
+  CC-IAM-001:
+    package_glob: internal/iam/**/*_test.go
+    required_files: [internal/iam]
+    tests:
+      - TestCCIAM001CrossTenantDenied
+      - TestCCIAM001UnassignedPropertyDenied
+      - TestCCIAM001OwnerGuestRolesDistinct
+      - TestCCIAM001ExpiredSupportAccessDenied
+      - TestCCIAM001StaffMFARequired
+  CC-ONB-001:
+    package_glob: internal/onboarding/**/*_test.go
+    required_files: [internal/onboarding]
+    tests:
+      - TestCCONB001LifecycleTransitions
+      - TestCCONB001SafetyHoldBlocksActivation
+      - TestCCONB001QuoteIsDeterministic
+      - TestCCONB001AgreementVersionIsImmutable
+  CC-RES-001:
+    package_glob: internal/reservations/**/*_test.go
+    required_files: [internal/reservations]
+    tests:
+      - TestCCRES001StaleCalendarIsRejected
+      - TestCCRES001ConflictIsDetected
+      - TestCCRES001CancellationUpdatesTurnover
+      - TestCCRES001UnauthorizedMessageIsBlocked
+  CC-OPS-001:
+    package_glob: internal/operations/**/*_test.go
+    required_files: [internal/operations]
+    tests:
+      - TestCCOPS001DispatchHonorsHardConstraints
+      - TestCCOPS001EvidenceRequiredForCompletion
+      - TestCCOPS001OfflineReplayIsIdempotent
+      - TestCCOPS001IncidentEscalates
+  CC-ACC-001:
+    package_glob: internal/access/**/*_test.go
+    required_files: [internal/access]
+    tests:
+      - TestCCACC001CustodyLedgerIsAppendOnly
+      - TestCCACC001DisclosureIsAuditedAndExpires
+      - TestCCACC001RevocationBlocksDisclosure
+      - TestCCACC001EmergencyAccessIsAttributable
+  CC-INV-001:
+    package_glob: internal/inventory/**/*_test.go
+    required_files: [internal/inventory]
+    tests:
+      - TestCCINV001MovementLedgerIsAppendOnly
+      - TestCCINV001NegativeBalanceIsRejected
+      - TestCCINV001ReconciliationIsAttributable
+      - TestCCINV001ConcurrentMovementIsConsistent
+  CC-BIL-001:
+    package_glob: internal/billing/**/*_test.go
+    required_files: [internal/billing]
+    tests:
+      - TestCCBIL001MoneyUsesMinorUnitsAndCurrency
+      - TestCCBIL001OwnerBillingOnly
+      - TestCCBIL001InvoiceCreationIsIdempotent
+      - TestCCBIL001DuplicateExpenseIsDetected
+  CC-DOC-001:
+    package_glob: internal/documents/**/*_test.go
+    required_files: [internal/documents]
+    tests:
+      - TestCCDOC001VersionsAreImmutable
+      - TestCCDOC001ExpiryIsDetected
+      - TestCCDOC001ExtractionRetainsSourceAndConfidence
+      - TestCCDOC001SubmissionRequiresHumanReview
+  CC-HOU-001:
+    package_glob: internal/automation/superhost/**/*_test.go
+    required_files: [internal/automation/superhost]
+    tests:
+      - TestCCHOU001PropertyScopeCannotCross
+      - TestCCHOU001OnlyTypedToolsAreExposed
+      - TestCCHOU001PolicyRejectsDirectMutation
+      - TestCCHOU001ModelOutageHasManualFallback
+  CC-HER-001:
+    package_glob: internal/automation/hermes/**/*_test.go
+    required_files: [internal/automation/hermes]
+    tests:
+      - TestCCHER001CommunicationAuthorityIsNarrow
+      - TestCCHER001ApprovalPolicyIsEnforced
+      - TestCCHER001OwnerAndGuestContextsAreSeparated
+      - TestCCHER001DeliveryIsIdempotent
+  CC-SEC-001:
+    package_glob: internal/security/**/*_test.go
+    required_files: [internal/security]
+    tests:
+      - TestCCSEC001SecretsAreRedacted
+      - TestCCSEC001SecureLinkExpiresAndRejectsReplay
+      - TestCCSEC001AuditEvidenceCannotBeRewritten
+      - TestCCSEC001CrossTenantRequestsFailClosed
+  CC-REL-001:
+    package_glob: internal/reliability/**/*_test.go
+    required_files: [internal/reliability]
+    tests:
+      - TestCCREL001BackupRestoreRebuildsWorkflow
+      - TestCCREL001MigrationForwardRecovery
+      - TestCCREL001OutboxReplayIsIdempotent
+      - TestCCREL001DependencyDegradationIsVisible
+      - TestCCREL001CapacityTarget
+

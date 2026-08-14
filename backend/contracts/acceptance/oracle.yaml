@@ -1,0 +1,74 @@
+{
+  "version": 1,
+  "behaviors": {
+    "TestCCFND001EmptyDatabaseMigration": {"phase": 1, "driver": "docker+postgres", "observes": ["empty PostgreSQL volume migrates without manual SQL", "migration history and application tables exist"]},
+    "TestCCFND001OutboxCommitAtomicity": {"phase": 1, "driver": "http+postgres", "observes": ["forced transaction failure leaves neither domain row nor outbox row", "success leaves both with matching correlation"]},
+    "TestCCFND001IdempotencyReplay": {"phase": 1, "driver": "http+postgres", "observes": ["same key and request returns original result", "same key with changed request is rejected", "one domain effect exists"]},
+    "TestCCFND001PrivateObjectSignedAccess": {"phase": 1, "driver": "http+object-store", "observes": ["signed grant expires", "tenant B cannot read tenant A object", "unscanned object is unavailable"]},
+    "TestCCFND001APIWorkerStart": {"phase": 1, "driver": "docker+http", "observes": ["API and worker start as separate processes", "readiness checks PostgreSQL and object storage", "worker restart preserves jobs"]},
+
+    "TestCCIAM001CrossTenantDenied": {"phase": 2, "driver": "http+postgres", "observes": ["tenant B token cannot read or mutate tenant A resource", "denial creates audit or security event without data disclosure"]},
+    "TestCCIAM001UnassignedPropertyDenied": {"phase": 2, "driver": "http", "observes": ["valid tenant actor without property assignment is denied", "response does not disclose secret or property details"]},
+    "TestCCIAM001OwnerGuestRolesDistinct": {"phase": 2, "driver": "http+postgres", "observes": ["same contact may hold distinct identities", "guest authority cannot invoke owner commands"]},
+    "TestCCIAM001ExpiredSupportAccessDenied": {"phase": 2, "driver": "http+time", "observes": ["expired support grant fails", "active reason-coded grant succeeds only inside scope", "each use is audited"]},
+    "TestCCIAM001StaffMFARequired": {"phase": 2, "driver": "http", "observes": ["privileged staff action without satisfied MFA is denied", "ordinary nonprivileged flow remains available"]},
+
+    "TestCCONB001LifecycleTransitions": {"phase": 2, "driver": "http+postgres", "observes": ["valid property lifecycle path succeeds", "invalid skip fails", "every transition records actor, reason and versions"]},
+    "TestCCONB001SafetyHoldBlocksActivation": {"phase": 2, "driver": "http", "observes": ["critical unresolved safety or compliance item blocks active transition", "authorized reviewed exception is explicit and time-bounded"]},
+    "TestCCONB001QuoteIsDeterministic": {"phase": 2, "driver": "http", "observes": ["identical versioned inputs produce identical minor-unit quote", "changed rule version is visible"]},
+    "TestCCONB001AgreementVersionIsImmutable": {"phase": 2, "driver": "http+postgres", "observes": ["accepted agreement version cannot update", "correction creates new version", "acceptance points to exact content hash"]},
+
+    "TestCCRES001StaleCalendarIsRejected": {"phase": 3, "driver": "worker+http", "observes": ["stale or failed feed creates visible exception", "unsafe turnover automation does not assume current data"]},
+    "TestCCRES001ConflictIsDetected": {"phase": 3, "driver": "worker+http+postgres", "observes": ["overlap, duplicate, timezone ambiguity or impossible turnaround creates conflict", "human resolution is audited"]},
+    "TestCCRES001CancellationUpdatesTurnover": {"phase": 3, "driver": "worker+http", "observes": ["cancelled reservation updates proposal", "accepted or assigned work is not silently deleted", "affected actors receive intent"]},
+    "TestCCRES001UnauthorizedMessageIsBlocked": {"phase": 3, "driver": "http+provider-stub", "observes": ["free-form or wrong-audience message cannot deliver without policy and review", "blocked attempt is recorded"]},
+
+    "TestCCOPS001DispatchHonorsHardConstraints": {"phase": 3, "driver": "http+postgres", "observes": ["skill, age, zone, availability, hours, rest, safety, access and two-person constraints cannot be overridden by score", "manual override records reason where allowed"]},
+    "TestCCOPS001EvidenceRequiredForCompletion": {"phase": 3, "driver": "http+object-store", "observes": ["ticket completion fails before required checklist and clean evidence", "accepted evidence hash remains stable"]},
+    "TestCCOPS001OfflineReplayIsIdempotent": {"phase": 3, "driver": "http+postgres", "observes": ["replayed checklist and evidence sync creates one effect", "conflicting versions remain visible and preserve data"]},
+    "TestCCOPS001IncidentEscalates": {"phase": 3, "driver": "http+worker", "observes": ["high-severity incident queues on-call and owner notification inside target", "service recovery links original incident"]},
+
+    "TestCCACC001CustodyLedgerIsAppendOnly": {"phase": 4, "driver": "http+postgres", "observes": ["issue, handover, return and emergency events append", "update or delete of prior custody event is unavailable"]},
+    "TestCCACC001DisclosureIsAuditedAndExpires": {"phase": 4, "driver": "http+time+postgres", "observes": ["assigned worker can disclose only inside service window", "plaintext is excluded from general responses", "disclosure and expiry are audited"]},
+    "TestCCACC001RevocationBlocksDisclosure": {"phase": 4, "driver": "http", "observes": ["revocation immediately blocks new disclosure", "previous short-lived grant cannot be replayed"]},
+    "TestCCACC001EmergencyAccessIsAttributable": {"phase": 4, "driver": "http+postgres", "observes": ["emergency path requires reason and privileged actor", "security alert and audit include property and correlation"]},
+
+    "TestCCINV001MovementLedgerIsAppendOnly": {"phase": 4, "driver": "http+postgres", "observes": ["every supported movement appends", "balance rebuild equals projection", "prior movement cannot update or delete"]},
+    "TestCCINV001NegativeBalanceIsRejected": {"phase": 4, "driver": "http+postgres", "observes": ["unexplained movement below policy balance fails atomically", "documented adjustment path remains available"]},
+    "TestCCINV001ReconciliationIsAttributable": {"phase": 4, "driver": "http+postgres", "observes": ["count variance posts explicit adjustment with counter, reviewer, reason and source count", "original ledger remains"]},
+    "TestCCINV001ConcurrentMovementIsConsistent": {"phase": 4, "driver": "concurrent-http+postgres", "observes": ["competing movements serialize or conflict safely", "no lost update or duplicate idempotency effect"]},
+
+    "TestCCBIL001MoneyUsesMinorUnitsAndCurrency": {"phase": 5, "driver": "http+postgres", "observes": ["all stored and returned money is integer minor units plus ISO currency", "floating input is rejected"]},
+    "TestCCBIL001OwnerBillingOnly": {"phase": 5, "driver": "http+postgres", "observes": ["charges link owner contract or approved evidence", "guest purchase and booking payout routes do not exist"]},
+    "TestCCBIL001InvoiceCreationIsIdempotent": {"phase": 5, "driver": "http+postgres", "observes": ["duplicate invoice key returns one invoice", "lines trace to contract, ticket, order or approved adjustment"]},
+    "TestCCBIL001DuplicateExpenseIsDetected": {"phase": 5, "driver": "http+postgres", "observes": ["same receipt or external identity cannot create two reimbursement effects", "reviewable conflict is preserved"]},
+
+    "TestCCDOC001VersionsAreImmutable": {"phase": 5, "driver": "http+object-store+postgres", "observes": ["original document version and hash cannot mutate", "correction creates superseding version"]},
+    "TestCCDOC001ExpiryIsDetected": {"phase": 5, "driver": "worker+http", "observes": ["upcoming and expired document conditions become visible", "critical expiry applies required hold"]},
+    "TestCCDOC001ExtractionRetainsSourceAndConfidence": {"phase": 5, "driver": "worker+http+postgres", "observes": ["each extracted field carries source location and confidence", "low-confidence or legal field requires reviewer"]},
+    "TestCCDOC001SubmissionRequiresHumanReview": {"phase": 5, "driver": "http+postgres", "observes": ["external submission cannot execute without authorized human confirmation", "exact version and receipt are preserved"]},
+
+    "TestCCHOU001PropertyScopeCannotCross": {"phase": 6, "driver": "http+provider-stub+postgres", "observes": ["model-supplied foreign property ID cannot alter context or tool scope", "attempt is denied and audited"]},
+    "TestCCHOU001OnlyTypedToolsAreExposed": {"phase": 6, "driver": "provider-stub+http", "observes": ["tool catalog matches allowlist and schema versions", "SQL, generic HTTP and prohibited mutation tools are absent"]},
+    "TestCCHOU001PolicyRejectsDirectMutation": {"phase": 6, "driver": "provider-stub+http+postgres", "observes": ["malicious model output alone changes no business row", "prohibited proposal becomes denial or escalation"]},
+    "TestCCHOU001ModelOutageHasManualFallback": {"phase": 6, "driver": "provider-stub+http", "observes": ["all providers unavailable leaves core reservation, ticket, dispatch, access, inventory, approval, billing and incident flows usable", "automation degradation is visible"]},
+
+    "TestCCHER001CommunicationAuthorityIsNarrow": {"phase": 6, "driver": "provider-stub+http", "observes": ["Hermes receives approved facts and bounded audience only", "cannot create liability, financial decision or operational truth"]},
+    "TestCCHER001ApprovalPolicyIsEnforced": {"phase": 6, "driver": "provider-stub+http+postgres", "observes": ["review-required draft cannot deliver before independent approval", "material edit invalidates approval when policy requires"]},
+    "TestCCHER001OwnerAndGuestContextsAreSeparated": {"phase": 6, "driver": "provider-stub+http", "observes": ["guest draft lacks owner-only finance and internal facts", "owner draft lacks unrelated guest data"]},
+    "TestCCHER001DeliveryIsIdempotent": {"phase": 6, "driver": "provider-stub+http+postgres", "observes": ["delivery replay produces one provider side effect", "every attempt and final state are recorded"]},
+
+    "TestCCSEC001SecretsAreRedacted": {"phase": 7, "driver": "http+logs+provider-stub", "observes": ["access codes, credentials, identity documents, bank data and tokens do not appear in logs, traces, errors or prompts", "redaction still preserves correlation"]},
+    "TestCCSEC001SecureLinkExpiresAndRejectsReplay": {"phase": 7, "driver": "http+time", "observes": ["secure stay or upload token expires", "consumed one-time token rejects replay", "token is not stored plaintext"]},
+    "TestCCSEC001AuditEvidenceCannotBeRewritten": {"phase": 7, "driver": "http+postgres", "observes": ["application roles have no update or delete path for audit evidence", "correction appends a linked event"]},
+    "TestCCSEC001CrossTenantRequestsFailClosed": {"phase": 7, "driver": "fuzz-http+postgres", "observes": ["cross-tenant identifiers across all protected routes deny before disclosure", "no side effect or outbox row occurs"]},
+
+    "TestCCREL001BackupRestoreRebuildsWorkflow": {"phase": 7, "driver": "backup+docker+http", "observes": ["disposable PostgreSQL and object backup restores", "representative property workflow and evidence remain consistent"]},
+    "TestCCREL001MigrationForwardRecovery": {"phase": 7, "driver": "docker+postgres", "observes": ["injected migration failure leaves known state", "documented forward recovery completes without silent data loss"]},
+    "TestCCREL001OutboxReplayIsIdempotent": {"phase": 7, "driver": "worker+postgres", "observes": ["replayed outbox delivery produces one downstream effect", "attempt history and final result remain visible"]},
+    "TestCCREL001DependencyDegradationIsVisible": {"phase": 7, "driver": "failure-injection+http", "observes": ["database, object, communication and model failures report degraded readiness or operational exception accurately", "unknown is never reported as success"]},
+    "TestCCREL001CapacityTarget": {"phase": 7, "driver": "load+metrics", "observes": ["50 properties, 1000 reservations, 100 workers or vendors, 50000 tickets and 100000 movements run without architecture change", "core server p95 and resource use are recorded"]}
+  }
+}
+
+

@@ -1,0 +1,22 @@
+# Local secrets. Examples remain trackable.
+**/.env
+**/.env.*
+!**/.env.example
+
+# Generated dependencies and build/test output.
+**/node_modules/
+**/dist/
+**/coverage/
+**/test-results/
+**/playwright-report/
+**/.cache/
+**/.runtime/
+**/.tmp/
+*.log
+coverage.out
+
+# Machine/editor state.
+.DS_Store
+.idea/
+.vscode/
+*.swp

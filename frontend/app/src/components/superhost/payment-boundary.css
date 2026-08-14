@@ -1,0 +1,35 @@
+.payment-boundary-frame {
+  position: fixed;
+  inset: 0;
+  border: 2px solid var(--red);
+  pointer-events: none;
+  z-index: 10001;
+}
+
+.payment-boundary-notice {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 10001;
+  width: min(390px, calc(100vw - 36px));
+  max-height: 28vh;
+  overflow: auto;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, .32);
+  animation: payment-boundary-in 180ms ease-out both;
+}
+
+.payment-boundary-notice .superhost-terminal {
+  min-height: 0;
+  max-height: none;
+  padding: 12px 14px;
+  font-size: 11px;
+}
+
+@keyframes payment-boundary-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .payment-boundary-notice { animation: none; }
+}

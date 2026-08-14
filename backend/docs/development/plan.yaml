@@ -1,0 +1,1235 @@
+{
+  "version": 1,
+  "project": "comfort-curators-backend",
+  "phases": [
+    {
+      "id": 1,
+      "name": "Executable foundation",
+      "verified_tag": "verified/phase-1"
+    },
+    {
+      "id": 2,
+      "name": "Identity, tenancy, onboarding, properties and contracts",
+      "verified_tag": "verified/phase-2"
+    },
+    {
+      "id": 3,
+      "name": "Reservations, operations, dispatch, workforce and communications",
+      "verified_tag": "verified/phase-3"
+    },
+    {
+      "id": 4,
+      "name": "Access, fleet, catalog, inventory, procurement and maintenance",
+      "verified_tag": "verified/phase-4"
+    },
+    {
+      "id": 5,
+      "name": "Documents, billing, finance, privacy and reporting",
+      "verified_tag": "verified/phase-5"
+    },
+    {
+      "id": 6,
+      "name": "Jarvis and Hermes",
+      "verified_tag": "verified/phase-6"
+    },
+    {
+      "id": 7,
+      "name": "Security, reliability and release hardening",
+      "verified_tag": "verified/phase-7"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "p0-build-interface",
+      "phase": 1,
+      "title": "Create the launcher build interface: Makefile phase targets and Compose root",
+      "priority": 0,
+      "class": "foundation",
+      "runtime": "codex",
+      "depends_on": [],
+      "requirements": [],
+      "description": "Create the hard contract between the repository and the launcher, before any domain code exists. Create a root Makefile with targets phase-1 through phase-7. Each target must bring the Compose topology up from clean volumes, apply migrations, run 'tests/acceptance/run --phase N', tear down, and exit non-zero on any failure. A phase whose behavior does not exist yet must fail loudly with a clear message; it must never exit zero by skipping. Create a root compose.yaml placeholder that later tasks extend, and an executable tests/acceptance/run that exits non-zero until real probes are registered. Do not implement domain behavior.",
+      "acceptance": [
+        "make phase-1 through make phase-7 all resolve as Makefile targets",
+        "every phase target exits non-zero while unimplemented, and never exits zero by skipping",
+        "compose.yaml exists at the repository root",
+        "tests/acceptance/run exists and is executable"
+      ]
+    },
+    {
+      "id": "p1-repository",
+      "phase": 1,
+      "title": "Create the Go modular-monolith repository spine",
+      "priority": 0,
+      "class": "foundation",
+      "runtime": "codex",
+      "depends_on": [
+        "p0-build-interface"
+      ],
+      "requirements": [],
+      "description": "Create go.mod, cmd/api, cmd/worker, internal/platform, internal/modules, migrations, tests, and minimal dependency rules. API and worker must compile independently. Do not implement domain behavior yet.",
+      "acceptance": [
+        "go list ./... succeeds",
+        "API and worker binaries compile",
+        "module-boundary test fixture exists"
+      ]
+    },
+    {
+      "id": "p1-config-health",
+      "phase": 1,
+      "title": "Implement configuration, request correlation, health and structured logging",
+      "priority": 0,
+      "class": "foundation",
+      "runtime": "opencode",
+      "depends_on": [
+        "p1-repository"
+      ],
+      "requirements": [],
+      "description": "Implement typed environment configuration, secret-safe structured logs, request and correlation IDs, graceful shutdown, liveness, readiness, and dependency health without logging sensitive values.",
+      "acceptance": [
+        "missing required configuration fails fast",
+        "health endpoints use the protected API shapes",
+        "secret redaction is tested"
+      ]
+    },
+    {
+      "id": "p1-postgres-migrations",
+      "phase": 1,
+      "title": "Implement PostgreSQL connection and forward-only migration foundation",
+      "priority": 0,
+      "class": "foundation",
+      "runtime": "opencode",
+      "depends_on": [
+        "p1-repository"
+      ],
+      "requirements": [],
+      "description": "Create pinned PostgreSQL integration, empty-database migrations, migration history, transaction helpers, synthetic fixtures, and a documented forward-recovery rule. Use the protected table ownership contract.",
+      "acceptance": [
+        "empty database migrates",
+        "migration checksum drift fails",
+        "transactions roll back on handler failure"
+      ]
+    },
+    {
+      "id": "p1-durability",
+      "phase": 1,
+      "title": "Implement idempotency, optimistic concurrency and atomic outbox",
+      "priority": 0,
+      "class": "platform",
+      "runtime": "codex",
+      "depends_on": [
+        "p1-postgres-migrations"
+      ],
+      "requirements": [
+        "NFR-006",
+        "NFR-007"
+      ],
+      "description": "Persist idempotency records with request hashes and result references, version contested aggregates, and commit domain state plus outbox intent atomically.",
+      "acceptance": [
+        "same key and body returns same result",
+        "same key and different body conflicts",
+        "outbox cannot exist without state or vice versa"
+      ]
+    },
+    {
+      "id": "p1-jobs",
+      "phase": 1,
+      "title": "Implement durable leased jobs, retries, heartbeat and dead-letter visibility",
+      "priority": 0,
+      "class": "platform",
+      "runtime": "opencode",
+      "depends_on": [
+        "p1-durability"
+      ],
+      "requirements": [
+        "NFR-004",
+        "NFR-005"
+      ],
+      "description": "Implement PostgreSQL job claims, lease expiry recovery, heartbeats, bounded backoff, cancellation, attempt limits, idempotent handlers, dead-letter state, and operator-visible failures.",
+      "acceptance": [
+        "two workers cannot claim one lease",
+        "expired lease is recovered",
+        "duplicate execution does not duplicate effects",
+        "terminal failure is visible"
+      ]
+    },
+    {
+      "id": "p1-private-files",
+      "phase": 1,
+      "title": "Implement private object metadata and S3-compatible signed access",
+      "priority": 1,
+      "class": "platform",
+      "runtime": "opencode",
+      "depends_on": [
+        "p1-config-health",
+        "p1-postgres-migrations"
+      ],
+      "requirements": [],
+      "description": "Implement private tenant-prefixed object ownership, upload grants, short-lived download grants, hashes, content type and size limits, immutable original references, scan status, and retention metadata.",
+      "acceptance": [
+        "cross-tenant object access fails closed",
+        "grants expire",
+        "unscanned objects are not generally available"
+      ]
+    },
+    {
+      "id": "p1-security-audit",
+      "phase": 1,
+      "title": "Implement security, audit, encryption and session-control primitives",
+      "priority": 0,
+      "class": "security",
+      "runtime": "codex",
+      "depends_on": [
+        "p1-config-health",
+        "p1-postgres-migrations"
+      ],
+      "requirements": [
+        "SEC-006",
+        "SEC-007",
+        "SEC-008",
+        "SEC-009",
+        "SEC-013",
+        "SEC-014"
+      ],
+      "description": "Add deny-by-default authorization interfaces, field-encryption boundary, key identifiers, immutable audit append interface, MFA policy capability, privileged access logging, remote session revocation, and secret rotation hooks.",
+      "acceptance": [
+        "plaintext access secrets cannot enter logs or normal queries",
+        "audit append has no update path",
+        "privileged policy requires MFA state"
+      ]
+    },
+    {
+      "id": "p1-compose-tooling",
+      "phase": 1,
+      "title": "Create the pinned local Docker Compose development and acceptance topology",
+      "priority": 0,
+      "class": "integration",
+      "runtime": "opencode",
+      "depends_on": [
+        "p1-config-health",
+        "p1-jobs",
+        "p1-private-files",
+        "p1-security-audit"
+      ],
+      "requirements": [],
+      "description": "Provide API, worker, PostgreSQL, MinIO, migration, test, model-stub, and acceptance-seed services with health checks and disposable acceptance profiles. Docker Compose is the local application interface.",
+      "acceptance": [
+        "clean checkout builds without host Go",
+        "API and worker start independently",
+        "acceptance fixture protocol is honored"
+      ]
+    },
+    {
+      "id": "p1-acceptance-runner",
+      "phase": 1,
+      "title": "Implement the independent black-box acceptance runner from the protected oracle",
+      "priority": 0,
+      "class": "acceptance-oracle",
+      "runtime": "opencode",
+      "depends_on": [
+        "p1-compose-tooling"
+      ],
+      "requirements": [],
+      "description": "Create tests/acceptance/run and phase-specific probes for all 55 protected oracle behaviors. The runner must call real HTTP endpoints, inspect PostgreSQL or object storage where named, control the deterministic provider stub, emit JUnit, and refuse missing or skipped required behaviors. It may read but not alter contracts or product files.",
+      "acceptance": [
+        "all 55 oracle names are registered exactly once",
+        "phase selection runs only that phase and regressions",
+        "missing probe fails",
+        "runner cannot pass from fabricated JUnit alone"
+      ]
+    },
+    {
+      "id": "p1-gate",
+      "phase": 1,
+      "title": "Independently verify Phase 1 from two clean databases",
+      "priority": 0,
+      "class": "phase-gate",
+      "runtime": "controller",
+      "depends_on": [
+        "p1-repository",
+        "p1-config-health",
+        "p1-postgres-migrations",
+        "p1-durability",
+        "p1-jobs",
+        "p1-private-files",
+        "p1-security-audit",
+        "p1-compose-tooling",
+        "p1-acceptance-runner"
+      ],
+      "requirements": [],
+      "acceptance_groups": [
+        "CC-FND-001"
+      ],
+      "description": "Run the protected Phase 1 gate twice from clean volumes. Verify actual processes, PostgreSQL state, object access, idempotency, lease recovery and outbox atomicity. Tag only after independent review.",
+      "acceptance": [
+        "make phase-1 passes twice",
+        "no mocked Docker success",
+        "verified/phase-1 is created only after evidence review"
+      ]
+    },
+    {
+      "id": "p2-identity",
+      "phase": 2,
+      "title": "Implement owner and staff identity, sessions, OTP readiness and MFA policy",
+      "priority": 0,
+      "class": "identity",
+      "runtime": "codex",
+      "depends_on": [
+        "p1-gate"
+      ],
+      "requirements": [],
+      "description": "Implement distinct owner, guest and staff identities, hashed one-time tokens, secure sessions, revocation, recovery boundaries, staff MFA readiness, rate limits, and audit.",
+      "acceptance": [
+        "OTP is hashed, expiring and single-use",
+        "owner and guest roles remain distinct",
+        "staff privileged action requires MFA policy"
+      ]
+    },
+    {
+      "id": "p2-tenancy",
+      "phase": 2,
+      "title": "Implement tenants, memberships, roles and audited support access",
+      "priority": 0,
+      "class": "security",
+      "runtime": "opencode",
+      "depends_on": [
+        "p2-identity"
+      ],
+      "requirements": [
+        "TEN-*"
+      ],
+      "description": "Implement role plus attribute authorization for tenant, property, assignment, state, time window, risk and threshold. Add time-limited, reason-coded support access and deny before disclosing existence.",
+      "acceptance": [
+        "cross-tenant reads and writes fail",
+        "expired support access fails",
+        "authorization is enforced in repositories and services"
+      ]
+    },
+    {
+      "id": "p2-properties",
+      "phase": 2,
+      "title": "Implement property aggregate, lifecycle, readiness and compliance holds",
+      "priority": 0,
+      "class": "domain",
+      "runtime": "opencode",
+      "depends_on": [
+        "p2-tenancy"
+      ],
+      "requirements": [
+        "PROP-*"
+      ],
+      "description": "Implement the frozen lifecycle from lead through archived, owner authority, service address, timezone, units and rooms, emergency contacts, service profile, readiness, compliance, access policy, and audited transitions.",
+      "acceptance": [
+        "invalid transitions fail",
+        "critical compliance hold blocks activation",
+        "ready-inactive and active are distinct"
+      ]
+    },
+    {
+      "id": "p2-owner-onboarding",
+      "phase": 2,
+      "title": "Implement complete owner and property onboarding",
+      "priority": 0,
+      "class": "domain",
+      "runtime": "opencode",
+      "depends_on": [
+        "p2-properties"
+      ],
+      "requirements": [],
+      "description": "Record owner authority, portfolio, goals, service preferences, budgets, contacts, documents, inspections, photographs, amenities, safety, furnishing, remediation, fit score inputs and activation holds.",
+      "acceptance": [
+        "onboarding resumes after interruption",
+        "missing legal or safety evidence blocks activation",
+        "inspection evidence is immutable"
+      ]
+    },
+    {
+      "id": "p2-contracts-quotes",
+      "phase": 2,
+      "title": "Implement deterministic quote, versioned service agreement and approval policy",
+      "priority": 0,
+      "class": "finance",
+      "runtime": "opencode",
+      "depends_on": [
+        "p2-owner-onboarding"
+      ],
+      "requirements": [],
+      "description": "Implement quote inputs and deterministic calculation, service scope and exclusions, management fee base, versioned immutable agreement, acceptance evidence, budgets, automation limits, and approval thresholds.",
+      "acceptance": [
+        "same inputs produce same quote",
+        "accepted agreement cannot mutate",
+        "fee base excludes protected pass-throughs by default"
+      ]
+    },
+    {
+      "id": "p2-compliance-expiry",
+      "phase": 2,
+      "title": "Implement property permission, registration, insurance and safety expiry controls",
+      "priority": 1,
+      "class": "compliance",
+      "runtime": "opencode",
+      "depends_on": [
+        "p2-properties",
+        "p2-contracts-quotes"
+      ],
+      "requirements": [],
+      "description": "Track compliance items, reviewer exceptions, evidence, effective and expiry dates, holds and renewal warnings without allowing AI legal sufficiency decisions.",
+      "acceptance": [
+        "expired critical item creates or maintains hold",
+        "exception is reviewer-attributed and time-bounded",
+        "Jarvis cannot clear compliance holds"
+      ]
+    },
+    {
+      "id": "p2-owner-property-api",
+      "phase": 2,
+      "title": "Expose the protected owner, property, onboarding and contract API slice",
+      "priority": 1,
+      "class": "api",
+      "runtime": "opencode",
+      "depends_on": [
+        "p2-contracts-quotes",
+        "p2-compliance-expiry"
+      ],
+      "requirements": [],
+      "description": "Implement the applicable protected OpenAPI routes, pagination, idempotency, stable errors, optimistic versions and authorization without leaking worker HR or access secrets.",
+      "acceptance": [
+        "OpenAPI conformance passes",
+        "owner sees owned properties only",
+        "ordinary property payload excludes access material"
+      ]
+    },
+    {
+      "id": "p2-gate",
+      "phase": 2,
+      "title": "Independently verify identity, tenancy and onboarding",
+      "priority": 0,
+      "class": "phase-gate",
+      "runtime": "controller",
+      "depends_on": [
+        "p2-identity",
+        "p2-tenancy",
+        "p2-properties",
+        "p2-owner-onboarding",
+        "p2-contracts-quotes",
+        "p2-compliance-expiry",
+        "p2-owner-property-api"
+      ],
+      "requirements": [],
+      "acceptance_groups": [
+        "CC-IAM-001",
+        "CC-ONB-001"
+      ],
+      "description": "Run cross-tenant, property, support grant, MFA, lifecycle, safety hold, deterministic quote and immutable agreement scenarios twice from clean state.",
+      "acceptance": [
+        "make phase-2 passes twice",
+        "verified/phase-2 follows independent evidence review"
+      ]
+    },
+    {
+      "id": "p3-calendar-ingestion",
+      "phase": 3,
+      "title": "Implement read-only iCalendar feed ingestion and health",
+      "priority": 0,
+      "class": "integration",
+      "runtime": "opencode",
+      "depends_on": [
+        "p2-gate"
+      ],
+      "requirements": [
+        "CAL-*"
+      ],
+      "description": "Poll read-only feeds, store raw external events, normalize timezones, preserve source IDs, detect staleness, duplicates, overlaps, impossible turnarounds and ambiguity, and create visible exceptions.",
+      "acceptance": [
+        "duplicate polls are idempotent",
+        "change and cancellation preserve accepted work",
+        "Jarvis cannot mutate external calendars"
+      ]
+    },
+    {
+      "id": "p3-reservation-workflow",
+      "phase": 3,
+      "title": "Implement normalized reservations, conflict resolution and turnover proposals",
+      "priority": 0,
+      "class": "domain",
+      "runtime": "opencode",
+      "depends_on": [
+        "p3-calendar-ingestion"
+      ],
+      "requirements": [],
+      "description": "Make normalized reservations the operational source of truth, provide human duplicate and conflict resolution, emit durable events, and deterministically propose required turnover and inspection work.",
+      "acceptance": [
+        "conflict resolution is audited",
+        "cancelled reservation updates rather than deletes work",
+        "stale feed is visible"
+      ]
+    },
+    {
+      "id": "p3-ticket-state-machine",
+      "phase": 3,
+      "title": "Implement tickets, explicit transitions, checklists and reopen behavior",
+      "priority": 0,
+      "class": "domain",
+      "runtime": "codex",
+      "depends_on": [
+        "p3-reservation-workflow"
+      ],
+      "requirements": [
+        "TKT-*"
+      ],
+      "description": "Implement all nine V0 ticket types, normative and alternate states, transition policy, versioned checklists, blockers, cancellation, follow-up reopen, actor attribution and notification intent.",
+      "acceptance": [
+        "every invalid transition is rejected",
+        "no hard delete path exists",
+        "high-risk verifier differs from actor"
+      ]
+    },
+    {
+      "id": "p3-evidence-incidents",
+      "phase": 3,
+      "title": "Implement evidence, incidents, escalation and service recovery",
+      "priority": 0,
+      "class": "domain",
+      "runtime": "opencode",
+      "depends_on": [
+        "p3-ticket-state-machine"
+      ],
+      "requirements": [],
+      "description": "Bind immutable evidence requirements to checklists, prevent completion without evidence, classify incidents, notify on-call and owner by policy, record responsibility and recovery, and preserve rework cost.",
+      "acceptance": [
+        "required evidence blocks completion",
+        "high severity queues alert",
+        "recovery preserves original failure"
+      ]
+    },
+    {
+      "id": "p3-workforce",
+      "phase": 3,
+      "title": "Implement employee and vendor workforce records, time, safety and grievance",
+      "priority": 0,
+      "class": "workforce",
+      "runtime": "opencode",
+      "depends_on": [
+        "p2-gate"
+      ],
+      "requirements": [
+        "WFM-*"
+      ],
+      "description": "Keep employees and genuine vendors distinct, enforce age 18, agreements, skills, training, availability, work and travel time, overtime, expenses, grievance, human adverse-action review, SOS and restricted work routing.",
+      "acceptance": [
+        "under-18 operations assignment fails",
+        "rating cannot deactivate worker",
+        "restricted work requires certification or specialist vendor"
+      ]
+    },
+    {
+      "id": "p3-dispatch",
+      "phase": 3,
+      "title": "Implement hard-constraint dispatch, assignment and advisory routing",
+      "priority": 0,
+      "class": "operations",
+      "runtime": "codex",
+      "depends_on": [
+        "p3-ticket-state-machine",
+        "p3-workforce"
+      ],
+      "requirements": [],
+      "description": "Assign using skill, service zone, availability, working-hour limits, rest, travel, access conflicts, safety and two-person requirements. Route optimization remains advisory and overrides require reasons.",
+      "acceptance": [
+        "hard constraint can never be optimized away",
+        "override is attributed",
+        "worker sees pay treatment before optional acceptance"
+      ]
+    },
+    {
+      "id": "p3-communications",
+      "phase": 3,
+      "title": "Implement templates, preferences, secure stay links and delivery history",
+      "priority": 1,
+      "class": "communications",
+      "runtime": "opencode",
+      "depends_on": [
+        "p3-ticket-state-machine",
+        "p3-workforce"
+      ],
+      "requirements": [
+        "COM-*"
+      ],
+      "description": "Separate urgent, transactional, marketing and sponsored consent; version Hindi and English templates; enforce quiet hours and escalation; provide secure stay links; record review, delivery and failure; hide access details from previews.",
+      "acceptance": [
+        "free-form AI message requires review",
+        "secure link expires and rejects replay",
+        "owner and guest audiences remain separate"
+      ]
+    },
+    {
+      "id": "p3-offline-sync",
+      "phase": 3,
+      "title": "Implement idempotent Curator checklist and evidence synchronization",
+      "priority": 0,
+      "class": "reliability",
+      "runtime": "opencode",
+      "depends_on": [
+        "p3-evidence-incidents",
+        "p3-dispatch"
+      ],
+      "requirements": [
+        "NFR-008",
+        "NFR-009",
+        "NFR-011"
+      ],
+      "description": "Support local draft checklist progress, queued evidence metadata, idempotent replay, visible conflicts, UTC storage, property timezone display and English/Hindi critical flow payloads.",
+      "acceptance": [
+        "replay does not duplicate",
+        "conflict is visible and preserves both versions",
+        "interrupted sync loses no accepted work"
+      ]
+    },
+    {
+      "id": "p3-gate",
+      "phase": 3,
+      "title": "Independently verify reservation-to-turnover and field operations",
+      "priority": 0,
+      "class": "phase-gate",
+      "runtime": "controller",
+      "depends_on": [
+        "p3-calendar-ingestion",
+        "p3-reservation-workflow",
+        "p3-ticket-state-machine",
+        "p3-evidence-incidents",
+        "p3-workforce",
+        "p3-dispatch",
+        "p3-communications",
+        "p3-offline-sync"
+      ],
+      "requirements": [],
+      "acceptance_groups": [
+        "CC-RES-001",
+        "CC-OPS-001"
+      ],
+      "description": "Run calendar change, conflict, cancellation, stale feed, ticket transition, dispatch hard constraint, evidence, incident and offline replay scenarios from clean state.",
+      "acceptance": [
+        "make phase-3 passes twice",
+        "verified/phase-3 follows independent evidence review"
+      ]
+    },
+    {
+      "id": "p4-access-custody",
+      "phase": 4,
+      "title": "Implement encrypted property access, timed disclosure, custody and revocation",
+      "priority": 0,
+      "class": "security",
+      "runtime": "codex",
+      "depends_on": [
+        "p3-gate"
+      ],
+      "requirements": [],
+      "description": "Implement key and code custody, encrypted secret storage, assignment and service-window disclosure, acknowledgements, return, revocation, emergency access, anomalies and append-only access events.",
+      "acceptance": [
+        "unassigned or out-of-window disclosure fails",
+        "revocation is immediate",
+        "emergency access is attributed and alerted"
+      ]
+    },
+    {
+      "id": "p4-fleet",
+      "phase": 4,
+      "title": "Implement compliant fleet assets, inspections, custody and incidents",
+      "priority": 1,
+      "class": "operations",
+      "runtime": "opencode",
+      "depends_on": [
+        "p3-gate"
+      ],
+      "requirements": [
+        "VEH-*"
+      ],
+      "description": "Track e-bike and battery identity, 250 W and design-speed evidence, warranty, service, pre-use inspection, custody, incidents, dispatch holds and disabled off-duty tracking. Passenger requests do not exist.",
+      "acceptance": [
+        "overdue safety item blocks dispatch",
+        "incident freezes asset",
+        "off-duty tracking is not collected"
+      ]
+    },
+    {
+      "id": "p4-catalog-packages",
+      "phase": 4,
+      "title": "Implement catalog, bundles and versioned owner property packages",
+      "priority": 0,
+      "class": "commerce-control",
+      "runtime": "opencode",
+      "depends_on": [
+        "p3-gate"
+      ],
+      "requirements": [
+        "CAT-*"
+      ],
+      "description": "Implement SKU evidence, operational labels, bundles, package versions, effective dates, estimated setup and monthly cost, consumption, substitution and budget policies. Sponsored placement remains disabled.",
+      "acceptance": [
+        "owner sees cost and substitution before activation",
+        "package changes are versioned",
+        "claims require retained evidence"
+      ]
+    },
+    {
+      "id": "p4-inventory-ledger",
+      "phase": 4,
+      "title": "Implement stock locations, append-only movements, counts and reconciliation",
+      "priority": 0,
+      "class": "ledger",
+      "runtime": "opencode",
+      "depends_on": [
+        "p4-catalog-packages",
+        "p3-ticket-state-machine"
+      ],
+      "requirements": [
+        "INV-*"
+      ],
+      "description": "Support central, in-transit, worker-kit and property locations; all movement types; property and ticket consumption; expiry; risk counts; concurrent consistency; and attributable adjustments.",
+      "acceptance": [
+        "balance rebuilds from ledger",
+        "unexplained negative stock fails",
+        "concurrent movements remain consistent",
+        "expired stock cannot issue"
+      ]
+    },
+    {
+      "id": "p4-procurement",
+      "phase": 4,
+      "title": "Implement reorder proposals, requisitions, approvals, purchase orders and receiving",
+      "priority": 0,
+      "class": "finance-control",
+      "runtime": "opencode",
+      "depends_on": [
+        "p4-inventory-ledger"
+      ],
+      "requirements": [],
+      "description": "Calculate reorder basis, lead time and safety stock; show budget effect; enforce new-supplier, threshold and price-variance approval; receive with condition evidence; separate rebates; keep food SKUs disabled without recorded approval.",
+      "acceptance": [
+        "AI cannot approve its requisition",
+        "new supplier requires human approval",
+        "receipt links order and evidence"
+      ]
+    },
+    {
+      "id": "p4-maintenance",
+      "phase": 4,
+      "title": "Implement maintenance triage, estimate, approval, vendor work and warranty history",
+      "priority": 1,
+      "class": "operations",
+      "runtime": "opencode",
+      "depends_on": [
+        "p4-procurement",
+        "p3-workforce"
+      ],
+      "requirements": [],
+      "description": "Route specialist work, preserve estimate and approval, assign qualified vendor, control property access, require completion evidence and independent high-risk verification, and retain warranty history.",
+      "acceptance": [
+        "unapproved estimate cannot start",
+        "vendor sees only assigned scope",
+        "high-risk actor cannot self-verify"
+      ]
+    },
+    {
+      "id": "p4-gate",
+      "phase": 4,
+      "title": "Independently verify access, inventory and maintenance controls",
+      "priority": 0,
+      "class": "phase-gate",
+      "runtime": "controller",
+      "depends_on": [
+        "p4-access-custody",
+        "p4-fleet",
+        "p4-catalog-packages",
+        "p4-inventory-ledger",
+        "p4-procurement",
+        "p4-maintenance"
+      ],
+      "requirements": [],
+      "acceptance_groups": [
+        "CC-ACC-001",
+        "CC-INV-001"
+      ],
+      "description": "Run access expiry, revocation, custody, emergency attribution, stock ledger, negative stock, reconciliation and concurrency scenarios plus maintenance approval and verification controls.",
+      "acceptance": [
+        "make phase-4 passes twice",
+        "verified/phase-4 follows independent evidence review"
+      ]
+    },
+    {
+      "id": "p5-documents",
+      "phase": 5,
+      "title": "Implement immutable documents, extraction provenance, expiry, review and submission packets",
+      "priority": 0,
+      "class": "documents",
+      "runtime": "opencode",
+      "depends_on": [
+        "p4-gate"
+      ],
+      "requirements": [
+        "DOC-*"
+      ],
+      "description": "Implement document ownership, immutable versions, source-located extraction confidence, legally material review, completeness and expiry, submission packets, exact submitted version and receipt, retention and approved signing path.",
+      "acceptance": [
+        "original bytes and version cannot change",
+        "low confidence requires human review",
+        "AI cannot certify, sign or file"
+      ]
+    },
+    {
+      "id": "p5-charges-invoices",
+      "phase": 5,
+      "title": "Implement owner-only charges, invoices, credits and operational subledger",
+      "priority": 0,
+      "class": "finance",
+      "runtime": "opencode",
+      "depends_on": [
+        "p4-gate"
+      ],
+      "requirements": [
+        "FIN-*"
+      ],
+      "description": "Implement integer minor-unit owner charges by protected class, contract and evidence links, invoice idempotency, credits and reversals, fee base rules, operational subledger and licensed-accounting export. Exclude guest payments and booking payouts.",
+      "acceptance": [
+        "duplicate invoice request is idempotent",
+        "money never uses float",
+        "financial correction preserves original entry"
+      ]
+    },
+    {
+      "id": "p5-maker-checker",
+      "phase": 5,
+      "title": "Implement maker-checker approvals, bank-change verification and reconciliation exceptions",
+      "priority": 0,
+      "class": "security",
+      "runtime": "codex",
+      "depends_on": [
+        "p5-charges-invoices"
+      ],
+      "requirements": [],
+      "description": "Separate request, vendor creation, bank-detail change, purchase, payment and approval according to policy. Require out-of-band bank verification and prohibit self-approval for high-risk actions.",
+      "acceptance": [
+        "maker cannot approve own action",
+        "bank change remains pending until external verification",
+        "AI cannot final-post a journal"
+      ]
+    },
+    {
+      "id": "p5-privacy-rights",
+      "phase": 5,
+      "title": "Implement privacy notices, rights, retention, vendor and security-log controls",
+      "priority": 0,
+      "class": "privacy",
+      "runtime": "opencode",
+      "depends_on": [
+        "p5-documents",
+        "p2-identity"
+      ],
+      "requirements": [
+        "SEC-001",
+        "SEC-002",
+        "SEC-003",
+        "SEC-004",
+        "SEC-005",
+        "SEC-010",
+        "SEC-011",
+        "SEC-012"
+      ],
+      "description": "Implement purpose inventory, notice and consent records, access, correction, withdrawal, grievance and erasure subject to retention, alternate ID path, masked Aadhaar preference, processor review, India security-log retention and de-identified model-evaluation boundary.",
+      "acceptance": [
+        "Aadhaar is optional",
+        "retention can block erasure with reason",
+        "production data cannot enter evaluation export by default"
+      ]
+    },
+    {
+      "id": "p5-consumer-controls",
+      "phase": 5,
+      "title": "Implement owner price disclosure, claims evidence, export and anti-dark-pattern controls",
+      "priority": 1,
+      "class": "consumer",
+      "runtime": "opencode",
+      "depends_on": [
+        "p5-charges-invoices",
+        "p4-catalog-packages"
+      ],
+      "requirements": [
+        "CON-*"
+      ],
+      "description": "Expose price, tax, recurrence, substitution, cancellation, refund, seller and origin where required; retain claim evidence; label sponsorship if later enabled; provide owner history export; forbid preselected add-ons and obstructed cancellation.",
+      "acceptance": [
+        "recurring cost is visible before acceptance",
+        "history exports within tenant scope",
+        "sponsored status cannot be hidden"
+      ]
+    },
+    {
+      "id": "p5-reporting",
+      "phase": 5,
+      "title": "Implement operational read models, property contribution and monthly owner report",
+      "priority": 1,
+      "class": "reporting",
+      "runtime": "opencode",
+      "depends_on": [
+        "p5-charges-invoices",
+        "p3-evidence-incidents",
+        "p4-inventory-ledger"
+      ],
+      "requirements": [],
+      "description": "Build rebuildable read models for readiness, schedule, incidents, approvals, inventory, documents, Jarvis activity, service levels, rework, labor, travel, vendor, refund, supply margin and property contribution without ranking workers automatically.",
+      "acceptance": [
+        "projection rebuild matches source transactions",
+        "owner sees exceptions without internal noise",
+        "worker metric does not become discipline"
+      ]
+    },
+    {
+      "id": "p5-owner-finance-api",
+      "phase": 5,
+      "title": "Expose protected document, billing, approval and reporting API slices",
+      "priority": 1,
+      "class": "api",
+      "runtime": "opencode",
+      "depends_on": [
+        "p5-documents",
+        "p5-maker-checker",
+        "p5-privacy-rights",
+        "p5-reporting"
+      ],
+      "requirements": [],
+      "description": "Implement applicable protected routes with evidence drill-down, stable errors, pagination, authorization, idempotency and resource versions. Do not expose booking payout custody or guest purchases.",
+      "acceptance": [
+        "OpenAPI conformance passes",
+        "owner cannot access another owner or worker HR details",
+        "financial evidence is traceable"
+      ]
+    },
+    {
+      "id": "p5-gate",
+      "phase": 5,
+      "title": "Independently verify documents, billing, finance, privacy and reporting",
+      "priority": 0,
+      "class": "phase-gate",
+      "runtime": "controller",
+      "depends_on": [
+        "p5-documents",
+        "p5-charges-invoices",
+        "p5-maker-checker",
+        "p5-privacy-rights",
+        "p5-consumer-controls",
+        "p5-reporting",
+        "p5-owner-finance-api"
+      ],
+      "requirements": [],
+      "acceptance_groups": [
+        "CC-BIL-001",
+        "CC-DOC-001"
+      ],
+      "description": "Run immutable version, expiry, extraction provenance, submission review, money, owner-only billing, invoice idempotency, duplicate expense, maker-checker and contribution reconciliation scenarios.",
+      "acceptance": [
+        "make phase-5 passes twice",
+        "verified/phase-5 follows independent evidence review"
+      ]
+    },
+    {
+      "id": "p6-agent-runtime",
+      "phase": 6,
+      "title": "Implement durable agent runs, provider interface, leases, events and usage",
+      "priority": 0,
+      "class": "automation",
+      "runtime": "opencode",
+      "depends_on": [
+        "p5-gate"
+      ],
+      "requirements": [],
+      "description": "Implement the protected agent run state machine, queued API, worker leases, heartbeat, retry, cancel, event stream, provider abstraction, local deterministic stub, schema and prompt versions, usage and estimated cost persistence.",
+      "acceptance": [
+        "submit returns run ID immediately",
+        "restart recovers expired lease",
+        "duplicate request produces one provider call",
+        "cancel prevents later tools"
+      ]
+    },
+    {
+      "id": "p6-jarvis-context",
+      "phase": 6,
+      "title": "Implement minimum property-scoped Jarvis context assembly",
+      "priority": 0,
+      "class": "automation-security",
+      "runtime": "opencode",
+      "depends_on": [
+        "p6-agent-runtime"
+      ],
+      "requirements": [
+        "HM-001",
+        "HM-002",
+        "HM-003",
+        "HM-004"
+      ],
+      "description": "Assemble only approved property, reservation, ticket, stock, contract, policy, preference and recent summarized facts with source and effective date. Enforce tenant and property scope in code.",
+      "acceptance": [
+        "cross-property request is denied",
+        "secrets and unrelated records are absent",
+        "model arguments cannot select another tenant"
+      ]
+    },
+    {
+      "id": "p6-typed-tools-policy",
+      "phase": 6,
+      "title": "Implement Jarvis typed tools, deterministic policy and approval envelopes",
+      "priority": 0,
+      "class": "automation-security",
+      "runtime": "codex",
+      "depends_on": [
+        "p6-jarvis-context"
+      ],
+      "requirements": [
+        "HM-005",
+        "HM-006",
+        "HM-007",
+        "HM-008",
+        "HM-009",
+        "HM-010"
+      ],
+      "description": "Implement only allowlisted typed reads and proposals, code policy, idempotent tool calls, fail-closed unknown results, uncertainty review, approval requests, audit and explicit prohibited authority.",
+      "acceptance": [
+        "direct mutation tool does not exist",
+        "timeout creates exception",
+        "model text alone changes no state",
+        "tool and model versions are traceable"
+      ]
+    },
+    {
+      "id": "p6-hermes",
+      "phase": 6,
+      "title": "Implement Hermes communication and service-recovery drafts",
+      "priority": 1,
+      "class": "automation",
+      "runtime": "opencode",
+      "depends_on": [
+        "p6-typed-tools-policy",
+        "p3-communications"
+      ],
+      "requirements": [],
+      "description": "Create bounded drafts from approved facts, audience, purpose, template, language, channel and review policy. Separate owner and guest context and keep delivery as a reviewed idempotent application action.",
+      "acceptance": [
+        "Hermes cannot decide liability",
+        "unreviewed free-form draft cannot deliver",
+        "delivery replay is idempotent"
+      ]
+    },
+    {
+      "id": "p6-ai-evaluation",
+      "phase": 6,
+      "title": "Implement protected adversarial and policy evaluation runner",
+      "priority": 0,
+      "class": "security-evaluation",
+      "runtime": "opencode",
+      "depends_on": [
+        "p6-typed-tools-policy",
+        "p6-hermes"
+      ],
+      "requirements": [],
+      "description": "Evaluate ambiguous calendars, conflicting property rules, low stock evidence, over-budget purchase, prohibited worker action, prompt injection, cross-property request, low-confidence document, timeout and delete-evidence requests. Fluent output without a valid tool result fails.",
+      "acceptance": [
+        "policy denial and escalation are scored",
+        "prompt injection cannot alter tools or policy",
+        "unsupported claim counts as failure"
+      ]
+    },
+    {
+      "id": "p6-model-outage",
+      "phase": 6,
+      "title": "Verify complete manual and deterministic operation during provider outage",
+      "priority": 0,
+      "class": "reliability",
+      "runtime": "opencode",
+      "depends_on": [
+        "p6-agent-runtime",
+        "p6-hermes"
+      ],
+      "requirements": [],
+      "description": "Disable every model provider and prove reservation, ticket, dispatch, access, inventory, approval, billing, incident and approved-template communication remain operable with visible automation degradation.",
+      "acceptance": [
+        "core API remains healthy",
+        "failed runs are visible and retryable",
+        "humans can complete equivalent workflow"
+      ]
+    },
+    {
+      "id": "p6-gate",
+      "phase": 6,
+      "title": "Independently verify Jarvis and Hermes boundaries",
+      "priority": 0,
+      "class": "phase-gate",
+      "runtime": "controller",
+      "depends_on": [
+        "p6-agent-runtime",
+        "p6-jarvis-context",
+        "p6-typed-tools-policy",
+        "p6-hermes",
+        "p6-ai-evaluation",
+        "p6-model-outage"
+      ],
+      "requirements": [],
+      "acceptance_groups": [
+        "CC-HOU-001",
+        "CC-HER-001"
+      ],
+      "description": "Run property-scope, typed-tool, direct-mutation denial, approval, owner/guest separation, idempotent delivery, lease recovery, duplicate provider and full model-outage scenarios.",
+      "acceptance": [
+        "make phase-6 passes twice",
+        "verified/phase-6 follows independent evidence review"
+      ]
+    },
+    {
+      "id": "p7-openapi-contract",
+      "phase": 7,
+      "title": "Complete API conformance, error, pagination and compatibility evidence",
+      "priority": 0,
+      "class": "release",
+      "runtime": "opencode",
+      "depends_on": [
+        "p6-gate"
+      ],
+      "requirements": [],
+      "description": "Verify every protected route, security scheme, stable error, idempotency rule, pagination shape and optimistic version behavior. Detect undocumented public routes and backward-incompatible behavior.",
+      "acceptance": [
+        "OpenAPI lints",
+        "running API conforms",
+        "cross-tenant authorization precedes existence disclosure"
+      ]
+    },
+    {
+      "id": "p7-security-hardening",
+      "phase": 7,
+      "title": "Run security, dependency, container, secret and abuse hardening",
+      "priority": 0,
+      "class": "security",
+      "runtime": "codex",
+      "depends_on": [
+        "p6-gate"
+      ],
+      "requirements": [],
+      "description": "Run static analysis, dependency and container scan, secret scan, authorization matrix, webhook replay, object ownership, prompt injection, rate and abuse controls, privileged-event alerts and finding disposition.",
+      "acceptance": [
+        "no unresolved high or critical finding",
+        "findings retain evidence and disposition",
+        "protected scenarios cannot be skipped"
+      ]
+    },
+    {
+      "id": "p7-observability",
+      "phase": 7,
+      "title": "Implement business-aware logs, metrics, traces, alerts and runbooks",
+      "priority": 1,
+      "class": "operations",
+      "runtime": "opencode",
+      "depends_on": [
+        "p6-gate"
+      ],
+      "requirements": [],
+      "description": "Expose API, database, outbox, job, calendar, notification, file, AI and authorization metrics plus actionable property-readiness, assignment, incident, stock and approval alerts without sensitive content.",
+      "acceptance": [
+        "correlation crosses API, job, outbox and tool call",
+        "alerts express business effect",
+        "logs remain redacted"
+      ]
+    },
+    {
+      "id": "p7-backup-recovery",
+      "phase": 7,
+      "title": "Implement and rehearse backup, restore, migration and failure recovery",
+      "priority": 0,
+      "class": "reliability",
+      "runtime": "opencode",
+      "depends_on": [
+        "p6-gate"
+      ],
+      "requirements": [
+        "NFR-012"
+      ],
+      "description": "Create PostgreSQL and object recovery procedure, restore disposable backup, forward-recover migration failure, replay outbox safely, restart workers, degrade dependencies visibly and document RPO 15 minutes and RTO 4 hours for the pilot.",
+      "acceptance": [
+        "restored workflow matches source",
+        "migration recovery preserves data",
+        "provider or object degradation is visible"
+      ]
+    },
+    {
+      "id": "p7-performance-accessibility",
+      "phase": 7,
+      "title": "Verify capacity, latency, accessibility and localization targets",
+      "priority": 1,
+      "class": "quality",
+      "runtime": "opencode",
+      "depends_on": [
+        "p7-observability"
+      ],
+      "requirements": [
+        "NFR-001",
+        "NFR-002",
+        "NFR-003",
+        "NFR-010"
+      ],
+      "description": "Exercise 50 active properties, 1,000 reservations, 100 workers/vendors, 50,000 tickets and 100,000 movements; verify p95 target for core server paths; review WCAG 2.2 AA API support and English/Hindi critical content.",
+      "acceptance": [
+        "capacity scenario completes without redesign",
+        "p95 result is measured and recorded",
+        "accessibility issues are dispositioned"
+      ]
+    },
+    {
+      "id": "p7-traceability-release",
+      "phase": 7,
+      "title": "Complete requirement traceability, launch metrics and manual inspection package",
+      "priority": 0,
+      "class": "integration-qa",
+      "runtime": "codex",
+      "depends_on": [
+        "p7-openapi-contract",
+        "p7-security-hardening",
+        "p7-backup-recovery",
+        "p7-performance-accessibility"
+      ],
+      "requirements": [
+        "OBJ-*"
+      ],
+      "description": "Trace all 146 normative requirements, 55 named behaviors and 16 launch acceptance areas to real evidence. Verify pilot metrics, property contribution, owner trust, Curator device workflow, recovery rehearsal and unresolved limitations. Stop at manual inspection.",
+      "acceptance": [
+        "coverage has no omissions or duplicate owners",
+        "evidence references real commands and revisions",
+        "production is not auto-approved"
+      ]
+    },
+    {
+      "id": "p7-gate",
+      "phase": 7,
+      "title": "Run final security and reliability gate and stop at manual inspection",
+      "priority": 0,
+      "class": "phase-gate",
+      "runtime": "controller",
+      "depends_on": [
+        "p7-openapi-contract",
+        "p7-security-hardening",
+        "p7-observability",
+        "p7-backup-recovery",
+        "p7-performance-accessibility",
+        "p7-traceability-release"
+      ],
+      "requirements": [],
+      "acceptance_groups": [
+        "CC-SEC-001",
+        "CC-REL-001"
+      ],
+      "description": "Run the complete protected suite twice from clean checkout and empty data, then restore a backup and run a representative property workflow. Produce the manual inspection handoff without deploying.",
+      "acceptance": [
+        "make phase-7 passes twice",
+        "all earlier gates regress",
+        "verified/phase-7 marks development completion only",
+        "manual inspection remains open"
+      ]
+    }
+  ]
+}
+

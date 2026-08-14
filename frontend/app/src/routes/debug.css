@@ -1,0 +1,88 @@
+.instrument-panel {
+  position: relative;
+}
+
+.instrument-money {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.instrument-stamp {
+  position: absolute;
+  top: 24px;
+  left: 24px;
+  padding: 12px 18px;
+  background: var(--magenta);
+  clip-path: polygon(2% 3%, 98% 0, 100% 88%, 95% 100%, 3% 96%, 0 12%);
+  color: var(--ink);
+  font-family: var(--font-shout);
+  font-size: clamp(18px, 2.2vw, 34px);
+  letter-spacing: -0.04em;
+  line-height: 0.9;
+  transform: rotate(-12deg);
+}
+
+.instrument-note {
+  max-width: 36ch;
+  margin: 0;
+  color: var(--ink-60);
+  font-family: var(--font-meta);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  line-height: 1.5;
+  text-transform: uppercase;
+}
+
+.instrument-session {
+  display: grid;
+  margin: 0;
+  border-top: 1px solid var(--paper);
+}
+
+.instrument-session > div {
+  padding: 18px 0;
+  border-bottom: 1px solid var(--paper);
+}
+
+.instrument-session dt {
+  margin: 0;
+  color: var(--paper);
+  font-family: var(--font-meta);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  opacity: 0.62;
+}
+
+.instrument-session dd {
+  margin: 10px 0 0;
+  color: var(--paper);
+  font-family: var(--font-meta);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.instrument-error {
+  background: var(--paper-2);
+  border-top: var(--rule);
+}
+
+.instrument-error pre {
+  margin-top: 48px;
+}
+
+.terminal-demo-section {
+  display: grid;
+  gap: 28px;
+}
+
+.terminal-demo-slot {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid currentColor;
+  color: inherit;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}

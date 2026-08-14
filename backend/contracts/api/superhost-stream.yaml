@@ -1,0 +1,244 @@
+version: 1
+description: >-
+  Frozen SSE event contract for Superhost thread streaming plus companion
+  HTTP endpoints (create thread, send message). This is the seam between
+  P3 (backend agent loop) and P4 (frontend terminal). Events emitted
+  over the stream conform to the existing AgentRunEvent envelope and the
+  agent_run_events table in internal/automation/. New event names below
+  are for the streaming use case; the existing AgentRunCompleted etc.
+  event names (internal/automation/models.go) are reused unchanged for
+  run-lifecycle signals.
+
+# ---------------------------------------------------------------------------
+# SSE stream endpoint
+# ---------------------------------------------------------------------------
+stream:
+  path: /v1/superhost/threads/{thread_id}/stream
+  method: GET
+  auth: bearer
+  content_type: text/event-stream
+  description: >-
+    Server-sent event stream for a Superhost thread. The server pushes
+    one AgentRunEvent-shaped JSON object per event line (data: ...\n\n).
+    The stream terminates with an [DONE] line when the run ends and no
+    further events will be produced for this stream connection.
+  parameters:
+    - name: thread_id
+      in: path
+      required: true
+      schema: {type: string, minLength: 16, maxLength: 64, pattern: '^[A-Za-z0-9_-]+$'}
+  responses:
+    '200':
+      description: Stream opened; events follow.
+      content:
+        text/event-stream: {}
+    '401':
+      description: Missing or invalid bearer token.
+    '403':
+      description: Authenticated but not authorized for this thread.
+    '404':
+      description: Thread not found or not owned by the tenant.
+    '503':
+      description: Stream server unavailable.
+
+# ---------------------------------------------------------------------------
+# Thread endpoints (frozen for P3.4 implementation)
+# ---------------------------------------------------------------------------
+endpoints:
+  create_thread:
+    path: /v1/superhost/threads
+    method: POST
+    description: >-
+      Create a Superhost conversation thread. Returns a thread resource
+      the caller uses to send messages and open a stream.
+    request:
+      required: [idempotency_key, tenant_id, property_id, purpose]
+      properties:
+        idempotency_key: {type: string, minLength: 8, maxLength: 128}
+        tenant_id: {type: string, minLength: 16, maxLength: 64, pattern: '^[A-Za-z0-9_-]+$'}
+        property_id: {type: string, minLength: 16, maxLength: 64, pattern: '^[A-Za-z0-9_-]+$'}
+        purpose: {type: string, minLength: 1, maxLength: 500}
+      example:
+        idempotency_key: "thr-20260809-01"
+        tenant_id: "tnt_k9x2ml4rn7p0v8s3"
+        property_id: "prp_r2h5bj6sn1w4q8t9"
+        purpose: "Turnover check for Gomti Nagar property"
+    response:
+      status: 201
+      body:
+        id: {type: string}
+        version: {type: integer, minimum: 1}
+        data: {type: object}
+      example:
+        id: "thr_f8a3c1d2e5b4a7f9"
+        version: 1
+        data:
+          thread_id: "thr_f8a3c1d2e5b4a7f9"
+          run_id: "run_e1b2c3d4f5a6b7c8"
+          created_at: "2026-08-09T12:00:00Z"
+    errors:
+      - {code: 409, reason: Duplicate idempotency_key}
+      - {code: 422, reason: Invalid property or tenant reference}
+
+  send_message:
+    path: /v1/superhost/threads/{thread_id}/messages
+    method: POST
+    description: >-
+      Send a user message on an existing thread. The server starts or
+      resumes a Superhost agent run and returns the run_id. Events
+      are consumed over the SSE stream; this endpoint is fire-and-forget
+      beyond returning the run reference.
+    parameters:
+      - name: thread_id
+        in: path
+        required: true
+        schema: {type: string, minLength: 16, maxLength: 64, pattern: '^[A-Za-z0-9_-]+$'}
+    request:
+      required: [idempotency_key, content]
+      properties:
+        idempotency_key: {type: string, minLength: 8, maxLength: 128}
+        content: {type: string, minLength: 1, maxLength: 4000}
+      example:
+        idempotency_key: "msg-20260809-01"
+        content: "Check the turnover status at Gomti Nagar between 11:00 and 14:00 today."
+    response:
+      status: 202
+      body:
+        request_id: {type: string}
+        status: {type: string, enum: [accepted]}
+        resource_id: {type: string}
+      example:
+        request_id: "req_c7d8e9f0a1b2c3d4"
+        status: "accepted"
+        resource_id: "run_e1b2c3d4f5a6b7c8"
+    errors:
+      - {code: 404, reason: Thread not found}
+      - {code: 422, reason: Content too long or invalid}
+
+# ---------------------------------------------------------------------------
+# Event envelope — every SSE data line is one JSON object with these fields
+# (matches internal/automation.AgentRunEvent and the agent_run_events table)
+# ---------------------------------------------------------------------------
+envelope:
+  required:
+    - event_id
+    - run_id
+    - event_name
+    - occurred_at
+  optional: [event_data]
+  properties:
+    event_id: {type: string, description: UUIDv7}
+    run_id: {type: string, description: UUID of the agent run that owns this event}
+    event_name: {type: string, description: Dot-separated versioned event name, e.g. ToolCallProposed.v1}
+    event_data: {type: object, description: JSON object whose shape is determined by event_name}
+    occurred_at: {type: string, format: date-time, description: ISO 8601 UTC}
+  rules:
+    - event_id is unique per run
+    - occurred_at is UTC
+    - stream consumers must tolerate unknown event_name values (don't crash on unrecognized events)
+    - the stream ends with an [DONE] line after the terminal event
+
+# ---------------------------------------------------------------------------
+# Stream event catalog — event_name → event_data shape
+# ---------------------------------------------------------------------------
+events:
+  # --- New tool-call flow events (SSE stream only) ---
+
+  - name: ToolCallProposed.v1
+    description: >-
+      The model proposed a tool call before policy evaluation. Emitted
+      immediately when the model returns tool_calls. This is what the
+      terminal renders as "the machine's proposal" (spec §3.6, §3.9).
+      Nothing is redacted — the terminal needs the full proposal to
+      display context.
+    event_data:
+      required: [tool_name, version, arguments]
+      properties:
+        tool_name: {type: string, description: Registered tool name, e.g. propose_turnover_ticket}
+        version: {type: string, description: Tool schema version, e.g. v1}
+        arguments: {type: object, description: Full tool arguments as parsed from the model}
+      example:
+        tool_name: "propose_turnover_ticket"
+        version: "v1"
+        arguments:
+          property_id: "prp_r2h5bj6sn1w4q8t9"
+          area: "Gomti Nagar"
+          window_start: "2026-08-09T11:00:00Z"
+          window_end: "2026-08-09T14:00:00Z"
+          reason: "Guest checking out at 10:30; room needs turnover before 15:00 check-in"
+
+  - name: PolicyDenied.v1
+    description: >-
+      The policy engine returned PolicyDenied. The terminal renders
+      this in red (spec §3.6). The reason text is shown verbatim —
+      it must be a short human-readable explanation, not a stack
+      trace or internal error code.
+    event_data:
+      required: [tool_name, reason]
+      properties:
+        tool_name: {type: string}
+        reason: {type: string, description: Machine-readable reason shown verbatim in the terminal}
+      example:
+        tool_name: "create_order_"
+        reason: "tool exercises prohibited authority"
+
+  - name: ApprovalRequired.v1
+    description: >-
+      The policy engine requires human approval; the run pauses in
+      waiting_for_approval state. An ApprovalRequest record is created
+      and persisted. The summary text is what the terminal displays
+      in the ConfirmBlock UI (spec §3.6), matching the natural-language
+      phrasing: "i can raise a turnover ticket for gomti nagar,
+      11:00–14:00. i have not done it yet. it needs your ok."
+    event_data:
+      required: [tool_name, approval_request_id, summary]
+      properties:
+        tool_name: {type: string}
+        approval_request_id: {type: string, description: UUID of the created superhost.ApprovalRequest}
+        summary: {type: string, description: Human-readable summary for the ConfirmBlock UI}
+      example:
+        tool_name: "propose_turnover_ticket"
+        approval_request_id: "ar_c9a8b7d6e5f4a3b2"
+        summary: "i can raise a turnover ticket for gomti nagar, 11:00–14:00. i have not done it yet. it needs your ok."
+
+  - name: PolicyAllowed.v1
+    description: >-
+      A read tool was allowed by policy and executed. The result
+      summary is fed back to the model as context. The terminal uses
+      this to show what the tool produced — include enough detail
+      to be meaningful (not just "ok"), but the full raw result is
+      not required.
+    event_data:
+      required: [tool_name, result_summary]
+      properties:
+        tool_name: {type: string}
+        result_summary: {type: string, description: Human-readable summary of the tool execution result}
+      example:
+        tool_name: "get_property_operating_summary"
+        result_summary: "Gomti Nagar: 3 active reservations, 1 checkout today 10:30, 0 open maintenance tickets, last turnover completed Aug 8."
+
+  # --- Existing run-lifecycle events (reused from internal/automation/models.go) ---
+  # These event names and shapes are the authoritative definitions in
+  # internal/automation/store.go — they are referenced here for the
+  # terminal implementer's convenience, not redefined.
+
+  - name: AgentRunQueued.v1
+    description: >-
+      The run has been queued for a worker. event_data is nil on initial
+      queue; on retry it carries { retried_at: ISO-8601 }.
+
+  - name: AgentRunCompleted.v1
+    description: >-
+      The run completed normally. event_data carries usage accounting:
+      { usage_minor_units, usage_currency, usage_input_tokens,
+        usage_output_tokens, usage_total_tokens, usage_known }.
+
+  - name: AgentRunFailed.v1
+    description: >-
+      The run has exceeded max_attempts or reached a terminal failure.
+      event_data carries { error_message: string }.
+
+  - name: AgentRunCancelled.v1
+    description: >-
+      The run was cancelled by an operator or upstream trigger.
+      event_data may include { cancelled_by: string, reason: string }.

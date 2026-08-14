@@ -1,0 +1,121 @@
+version: 1
+
+agent_run:
+  initial: queued
+  terminal: [completed, failed, cancelled]
+  states:
+    queued: [leased, cancelled]
+    leased: [running, queued, cancelled, failed]
+    running: [waiting_for_tool, waiting_for_approval, unknown, retryable, completed, cancelled, failed]
+    waiting_for_tool: [running, waiting_for_approval, retryable, cancelled, failed]
+    waiting_for_approval: [running, completed, cancelled, failed]
+    retryable: [queued, cancelled, failed]
+    unknown: [retryable, queued, cancelled, failed]
+    completed: []
+    failed: []
+    cancelled: []
+  required_record:
+    - run_id
+    - run_kind
+    - tenant_id
+    - property_id
+    - actor_id
+    - trigger_type
+    - trigger_id
+    - correlation_id
+    - idempotency_key
+    - state
+    - state_version
+    - attempt
+    - max_attempts
+    - lease_owner
+    - lease_expires_at
+    - heartbeat_at
+    - provider
+    - model
+    - prompt_template_version
+    - input_schema_version
+    - output_schema_version
+    - created_at
+    - updated_at
+  rules:
+    - only one live run exists for a run_kind plus idempotency_key
+    - lease claims are atomic and expired leases are recoverable
+    - provider timeouts return unknown or retryable, never success
+    - a model response alone cannot mutate business state
+    - cancellation prevents later tool execution
+    - core operations remain available when every provider is unavailable
+
+tool_call:
+  initial: proposed
+  terminal: [succeeded, denied, failed, cancelled]
+  states:
+    proposed: [policy_checking, cancelled]
+    policy_checking: [approval_required, executing, denied, failed]
+    approval_required: [executing, denied, cancelled]
+    executing: [succeeded, retryable, failed, cancelled]
+    retryable: [policy_checking, failed, cancelled]
+    succeeded: []
+    denied: []
+    failed: []
+    cancelled: []
+  rules:
+    - tool names and schema versions are allowlisted per agent kind
+    - tenant and property derive from authenticated run context, not model arguments
+    - every attempt records redacted input class, output class, policy result, actor context, and idempotency key
+    - approval cannot be supplied by the proposing run or actor where maker-checker applies
+    - generic SQL, arbitrary HTTP, raw object store, bank mutation, access override, legal filing, worker adverse action, and hard delete tools do not exist
+
+approval:
+  initial: pending
+  terminal: [approved, rejected, expired, cancelled]
+  states:
+    pending: [approved, rejected, expired, cancelled]
+    approved: []
+    rejected: []
+    expired: []
+    cancelled: []
+  rules:
+    - requester cannot approve when the policy requires maker-checker separation
+    - decision records actor, role, tenant, property, evidence, reason, policy version, and timestamp
+    - changed amount, scope, supplier, access, or evidence invalidates prior approval when policy says material
+
+superhost:
+  allowed_tools:
+    - get_property_operating_summary
+    - get_reservation_change
+    - propose_turnover_ticket
+    - propose_inspection_ticket
+    - propose_restock
+    - propose_maintenance_request
+    - request_owner_approval
+    - request_operations_approval
+    - send_approved_notification
+    - assemble_document_packet
+    - summarize_incident
+    - escalate_exception
+  prohibited_authority:
+    - direct storage mutation
+    - unapproved purchase or order
+    - self approval
+    - payment, refund, journal, or bank detail mutation
+    - legal signature, certification, or filing
+    - unrestricted access-secret disclosure
+    - worker rejection, suspension, termination, wage, or contract change
+    - high-risk work verification
+    - hard deletion or evidence rewrite
+
+hermes:
+  allowed_outputs:
+    - arrival guidance draft
+    - owner exception draft
+    - guest issue response draft
+    - escalation notice draft
+    - service recovery follow-up draft
+  required_context: [tenant_id, property_id, audience, purpose, approved_facts, template_version, language, channel, review_policy]
+  rules:
+    - free-form owner or guest communication requires review in V0
+    - Hermes cannot create operational truth, financial liability, or conflicting work
+    - owner and guest contexts remain distinct
+    - delivery is a separate idempotent application action
+

@@ -1,0 +1,72 @@
+version: 1
+database: postgresql
+scope: comfort-curators-v0
+
+global_constraints:
+  identifiers: UUID or opaque sortable identifiers
+  tenancy: every business table carries tenant_id or is an explicitly global reference table
+  property_scope: property records carry property_id and enforce same-tenant foreign keys
+  money: integer minor units plus ISO 4217 currency
+  time: store UTC, retain source timezone, render using property timezone
+  deletion: no hard delete for operational, access, evidence, financial, approval, communication, audit, or agent records
+  concurrency: version contested aggregates and use optimistic checks
+  idempotency: persist caller or source key, operation class, request hash, result reference, and expiry
+  audit: attribute actor, tenant, property when relevant, request/correlation IDs, previous and next state, reason, and timestamp
+  secrets: separately encrypt access secrets and sensitive identity or bank fields
+  outbox: state mutation and required outbox row commit in the same transaction
+  jobs: lease, heartbeat, attempt, backoff, idempotency key, terminal status, and visible dead letter
+
+modules:
+  identity:
+    tables: [users, authentication_methods, sessions, mfa_methods, session_revocations]
+  tenancy:
+    tables: [tenants, tenant_memberships, roles, role_permissions, support_access_grants, service_regions]
+  onboarding:
+    tables: [owner_authorities, owner_onboarding_cases, property_inspections, inspection_findings, remediation_items, fit_scores, quote_inputs]
+  contracts:
+    tables: [service_contracts, service_contract_versions, fee_rules, approval_policies, contract_acceptances]
+  properties:
+    tables: [properties, property_units, property_rooms, property_service_profiles, property_compliance_items, property_access_policies]
+  reservations:
+    tables: [calendar_feeds, external_calendar_events, reservations, reservation_conflicts, reservation_exceptions]
+  operations:
+    tables: [tickets, ticket_state_events, checklist_templates, checklist_template_versions, ticket_checklist_items, evidence_files, incidents, escalations, service_recovery_cases]
+  dispatch:
+    tables: [availability_windows, ticket_assignments, route_plans, route_stops, dispatch_overrides]
+  workforce:
+    tables: [workers, employment_terms, vendor_profiles, skills, worker_skills, training_records, time_entries, expenses, grievances, adverse_action_reviews]
+  access:
+    tables: [property_access_secrets, access_grants, access_disclosures, access_custody_events, access_holds]
+  fleet:
+    tables: [fleet_assets, fleet_batteries, fleet_custody_events, fleet_inspections, fleet_maintenance, fleet_incidents]
+  catalog:
+    tables: [catalog_items, catalog_claim_evidence, package_templates, property_package_versions, property_package_items]
+  inventory:
+    tables: [stock_locations, inventory_movements, inventory_counts, inventory_count_lines, reorder_policies, reorder_proposals]
+  procurement:
+    tables: [suppliers, supplier_items, requisitions, requisition_approvals, purchase_orders, goods_receipts, supplier_rebates]
+  maintenance:
+    tables: [maintenance_requests, maintenance_estimates, maintenance_approvals, vendor_work_orders, warranty_records]
+  documents:
+    tables: [documents, document_versions, document_extractions, document_reviews, submission_packets, submission_receipts]
+  billing:
+    tables: [charges, invoices, invoice_lines, credits, operational_subledger_entries, accounting_exports]
+  finance:
+    tables: [financial_approvals, bank_detail_change_requests, reconciliation_exceptions]
+  communications:
+    tables: [message_templates, message_template_versions, communication_preferences, communication_drafts, communication_reviews, deliveries, conversation_links]
+  superhost:
+    tables: [agent_runs, agent_run_events, ai_tool_calls, agent_context_references, agent_usage_records, policy_decisions, approval_requests]
+  audit:
+    tables: [audit_events, security_events, retention_actions]
+  platform:
+    tables: [idempotency_records, outbox_events, job_runs, file_objects, webhook_deliveries]
+  reporting:
+    tables: [report_snapshots, metric_observations]
+
+forbidden_direct_writes:
+  - modules may write only their owned tables through their application service
+  - reporting projections are rebuildable and never become transaction authority
+  - superhost and hermes adapters never receive a database handle
+  - object storage bytes are referenced only through platform file metadata and authorization
+

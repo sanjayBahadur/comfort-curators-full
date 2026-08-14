@@ -1,0 +1,13 @@
+# Superseded local implementation retained for reference, not publication.
+app-next-superseded/
+
+# Local secrets and machine artifacts.
+.env
+.env.local
+.DS_Store
+
+# Sandcastle runtime output at repo root (logs/, worktrees/, .env) — created
+# here because run()'s `cwd` option anchors these to the repo root, even
+# though the source config (blocks.json, Dockerfile, prompt files) lives in
+# the tracked app/.sandcastle/. Leading slash: don't also match app/.sandcastle/.
+/.sandcastle/

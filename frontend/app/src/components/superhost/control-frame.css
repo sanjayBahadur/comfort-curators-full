@@ -1,0 +1,58 @@
+.control-frame-page-border {
+  --control-frame-glow: #00FF66;
+  position: fixed;
+  inset: 0;
+  border: 2px solid var(--control-frame-glow);
+  pointer-events: none;
+  z-index: 9998;
+}
+
+.control-frame-strip {
+  --control-frame-glow: #00FF66;
+  --control-frame-glow-dim: #00994d;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: var(--ink);
+  color: var(--control-frame-glow);
+  font-family: var(--font-meta);
+  font-size: 12px;
+  line-height: 1.5;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  border-top: 2px solid var(--control-frame-glow);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.control-frame-strip-text {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.control-frame-strip-dim {
+  color: var(--control-frame-glow-dim);
+}
+
+.control-frame-revoke-hint {
+  color: var(--control-frame-glow-dim);
+  cursor: pointer;
+}
+
+.control-frame-strip:hover .control-frame-revoke-hint {
+  color: var(--control-frame-glow);
+}
+
+/* .control-frame-grant-button was removed from ControlFrame -- the grant
+   entry point now lives in GlobalSuperhostDrawer (global-superhost-drawer
+   .css's .gsh-drawer-grant-button). PaymentBoundary.tsx's Gate 3 effect
+   still harmlessly queries this classname (guarded, no-ops if absent) --
+   left as-is rather than touching verified payment-gate code for a
+   cosmetic cleanup. */

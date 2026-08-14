@@ -1,0 +1,41 @@
+.popover {
+  position: relative;
+  display: inline-block;
+}
+
+.popover-panel {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 6px);
+  left: 0;
+  min-width: 200px;
+  max-width: min(320px, calc(100vw - 32px));
+  padding: 16px;
+  border: var(--rule);
+  border-radius: var(--radius);
+  background: var(--paper);
+  color: var(--ink-body);
+  animation: popover-enter 200ms var(--ease-expo-out) both;
+}
+
+.popover-panel:focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: 2px;
+}
+
+@keyframes popover-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .popover-panel {
+    animation: none;
+  }
+}

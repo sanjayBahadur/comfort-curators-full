@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ $# -ne 1 ]]; then
+  echo "usage: scripts/run-phase <phase-number>" >&2
+  exit 64
+fi
+
+phase="$1"
+case "$phase" in
+  1|2|3|4|5|6|7) ;;
+  *)
+    echo "unknown phase: $phase" >&2
+    exit 64
+    ;;
+esac
+
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$root"
+compose_project="${COMPOSE_PROJECT_NAME:-comfort-curators-backend}"
+
+# The acceptance suite authenticates via the acceptance-only session-fixture
+# route, which only exists in a binary built with -tags acceptance (see
+# internal/iam/testfixtures.go). This is the one and only place that should
+# ever set this -- a real deployment must never have that route compiled in.
+export CC_BUILD_TAGS="acceptance"
+
+compose() {
+  docker compose --project-name "$compose_project" -f compose.yaml "$@"
+}
+
+cleanup() {
+  if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
+    compose down -v --remove-orphans >/dev/null 2>&1 || true
+  fi
+}
+trap cleanup EXIT
+
+if ! command -v docker >/dev/null 2>&1; then
+  echo "docker is required for launcher phase-$phase verification" >&2
+  exit 1
+fi
+
+if ! docker compose version >/dev/null 2>&1; then
+  echo "docker compose is required for launcher phase-$phase verification" >&2
+  exit 1
+fi
+
+if ! docker info >/dev/null 2>&1; then
+  echo "docker daemon is unavailable for launcher phase-$phase verification" >&2
+  exit 1
+fi
+
+compose down -v --remove-orphans
+compose up --build -d
+
+# `compose up -d` returns as soon as containers are created; it does not
+# block for the api container's healthcheck, and the acceptance runner's
+# own HTTP probes have no retry loop (single 2s dial). Without waiting
+# here, the runner races container startup and fails with "connection
+# refused" even when the stack comes up correctly moments later.
+base_url="${CC_BASE_URL:-http://127.0.0.1:${CC_HTTP_PORT:-8080}}"
+ready=""
+for _ in $(seq 1 60); do
+  if curl --silent --fail "$base_url/health/live" >/dev/null 2>&1; then
+    ready=1
+    break
+  fi
+  sleep 1
+done
+if [[ -z "$ready" ]]; then
+  echo "api did not become healthy at $base_url/health/live within 60s" >&2
+  compose ps >&2 || true
+  compose logs --tail 200 >&2 || true
+  exit 1
+fi
+
+tests/acceptance/run --phase "$phase"

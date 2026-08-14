@@ -1,0 +1,109 @@
+.superhost-task-list,
+.superhost-task-steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.superhost-task-list {
+  display: grid;
+  /* Same fix as .superhost-terminal-lines in Terminal.css: an implicit
+     auto-sized grid column grows to fit its widest child's unwrapped
+     content instead of wrapping it, which was the real source of the
+     horizontal scroll/clipped text this and the min-width: max-content
+     rules below were causing. */
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+}
+
+.superhost-task-heading,
+.superhost-task-step {
+  display: flex;
+  line-height: 1.5;
+}
+
+.superhost-task-marker,
+.superhost-task-branch,
+.superhost-task-state {
+  flex: 0 0 auto;
+}
+
+.superhost-task-wrap {
+  /* Flex items default to min-width: auto, which refuses to shrink
+     below the text's unwrapped intrinsic width -- min-width: 0 is what
+     actually lets a long task title or step line wrap inside its flex
+     row instead of pushing it wide. */
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+
+.superhost-task-marker {
+  margin-right: 8px;
+}
+
+.superhost-task-title {
+  font-weight: 700;
+}
+
+.superhost-task-state {
+  margin-left: 12px;
+  opacity: .65;
+  font-size: .75em;
+  letter-spacing: .08em;
+}
+
+.superhost-task-denied > .superhost-task-heading,
+.superhost-task-blocked > .superhost-task-heading {
+  color: var(--red);
+}
+
+.superhost-task-steps {
+  padding-left: 2.7em;
+}
+
+.superhost-task-answer {
+  margin: 6px 0 0;
+  padding-left: 2.7em;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.superhost-task-branch {
+  opacity: .65;
+}
+
+.superhost-task-steps-detail {
+  margin-left: 2.7em;
+}
+
+.superhost-task-steps-detail > summary {
+  width: fit-content;
+  font-size: .75em;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  opacity: .65;
+  cursor: pointer;
+  list-style: none;
+}
+
+.superhost-task-steps-detail > summary::-webkit-details-marker {
+  display: none;
+}
+
+.superhost-task-steps-detail > summary::before {
+  content: "+ ";
+}
+
+.superhost-task-steps-detail[open] > summary::before {
+  content: "- ";
+}
+
+.superhost-task-steps-detail > summary:hover,
+.superhost-task-steps-detail > summary:focus-visible {
+  opacity: 1;
+}
+
+.superhost-task-steps-detail .superhost-task-steps {
+  padding-left: 0;
+  margin-top: 8px;
+}

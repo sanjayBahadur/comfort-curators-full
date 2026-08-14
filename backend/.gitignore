@@ -1,0 +1,45 @@
+.env
+.env.*
+!.env.example
+.runtime/
+.tmp/
+.cache/
+.coverage/
+coverage.out
+bin/
+dist/
+tests/quality/reports/*.json
+vendor/
+node_modules/
+__pycache__/
+*.pyc
+*.log
+*.local
+*.pem
+*.key
+*.crt
+*.p12
+*.sqlite
+*.db
+.DS_Store
+
+# Gas Town and Beads runtime data are owned by the local town/rig.
+.beads-wisp/
+
+# Generated setup state. The source plan remains tracked.
+.gastown/task-map.json
+.gastown/setup-state.json
+.gc/
+.agents/
+.opencode/
+.codex/*
+!.codex/config.toml
+
+# Gas City
+.beads/*
+!.beads/identity.toml
+
+# Beads / Dolt files (added by bd init)
+.dolt/
+.beads-credential-key
+

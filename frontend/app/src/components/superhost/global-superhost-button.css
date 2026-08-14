@@ -1,0 +1,119 @@
+/* #00FF66 here is the same hex as --phosphor, deliberately not reusing that
+   token -- ART-DIRECTION.md 14 scopes --phosphor to .superhost-terminal only
+   (there's a grep gate for it). P4.7's control-frame CSS made the same call
+   for the same reason; this follows it. */
+.global-superhost-button {
+  position: fixed;
+  z-index: 9997;
+  top: 16px;
+  right: 16px;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid #00ff66;
+  background: var(--ink);
+  color: #00ff66;
+  font-family: var(--font-meta);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 150ms var(--ease-expo-out);
+}
+
+.global-superhost-button-status {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: .45;
+}
+
+.global-superhost-button[data-active="true"] {
+  animation: gsh-active-nudge 1.4s ease-in-out infinite;
+  box-shadow: 0 0 0 1px rgba(0, 255, 102, .25), 0 0 20px rgba(0, 255, 102, .25);
+}
+
+.global-superhost-button[data-active="true"] .global-superhost-button-status {
+  opacity: 1;
+  box-shadow: 0 0 9px #00ff66;
+  animation: gsh-active-pulse 900ms ease-in-out infinite alternate;
+}
+
+.global-superhost-button[data-active="true"]::before,
+.global-superhost-button[data-active="true"]::after {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border: 1px solid #00ff66;
+  content: "";
+  pointer-events: none;
+  opacity: 0;
+}
+
+.global-superhost-button[data-active="true"]::before {
+  left: 24%;
+  bottom: -3px;
+  animation: gsh-particle-a 1.3s ease-out infinite;
+}
+
+.global-superhost-button[data-active="true"]::after {
+  right: 18%;
+  top: -3px;
+  animation: gsh-particle-b 1.3s .55s ease-out infinite;
+}
+
+@keyframes gsh-active-nudge {
+  0%, 72%, 100% { transform: translateX(0) rotate(0); }
+  78% { transform: translateX(-2px) rotate(-.7deg); }
+  84% { transform: translateX(2px) rotate(.7deg); }
+  90% { transform: translateX(-1px) rotate(-.35deg); }
+}
+
+@keyframes gsh-active-pulse {
+  to { transform: scale(1.35); }
+}
+
+@keyframes gsh-particle-a {
+  0% { opacity: 0; transform: translate(0, 0) rotate(0); }
+  20% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-12px, 18px) rotate(130deg) scale(.25); }
+}
+
+@keyframes gsh-particle-b {
+  0% { opacity: 0; transform: translate(0, 0) rotate(0); }
+  20% { opacity: 1; }
+  100% { opacity: 0; transform: translate(14px, -17px) rotate(-150deg) scale(.2); }
+}
+
+.global-superhost-button:hover,
+.global-superhost-button[data-open="true"] {
+  background: #00ff66;
+  color: var(--ink);
+}
+
+.global-superhost-button:focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .global-superhost-button[data-active="true"],
+  .global-superhost-button[data-active="true"]::before,
+  .global-superhost-button[data-active="true"]::after,
+  .global-superhost-button[data-active="true"] .global-superhost-button-status {
+    animation: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .global-superhost-button {
+    top: 12px;
+    right: 12px;
+    min-height: 32px;
+    padding: 0 10px;
+    font-size: 9px;
+  }
+}

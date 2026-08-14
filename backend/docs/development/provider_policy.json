@@ -1,0 +1,31 @@
+{
+  "schema": "comfort-curators-provider-policy/v1",
+  "default_implementation_agent": "opencode",
+  "deepseek_model": "deepseek/deepseek-v4-pro",
+  "codex_model": "gpt-5.6-sol",
+  "codex_tasks": [
+    "p1-durability",
+    "p1-repository",
+    "p1-security-audit",
+    "p2-identity",
+    "p3-dispatch",
+    "p3-ticket-state-machine",
+    "p4-access-custody",
+    "p5-maker-checker",
+    "p6-typed-tools-policy",
+    "p7-security-hardening",
+    "p7-traceability-release"
+  ],
+  "automatic_phase_capacity": {
+    "1": 3,
+    "2": 2,
+    "3": 3,
+    "4": 3,
+    "5": 4,
+    "6": 2,
+    "7": 4
+  },
+  "manual_capacity_max": 8,
+  "rationale": "DeepSeek handles routine implementation. Codex handles high-risk architecture, concurrency, authorization, financial approval, AI policy, security, release traceability, and merge integration."
+}
+

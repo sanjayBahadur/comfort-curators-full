@@ -1,0 +1,218 @@
+.gsh-drawer-portal {
+  position: fixed;
+  z-index: 9996;
+  inset: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.gsh-drawer-portal[data-open="true"] {
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.gsh-drawer-scrim {
+  position: fixed;
+  z-index: 9996;
+  inset: 0;
+  border: 0;
+  background: rgba(0, 0, 0, 0.55);
+  cursor: default;
+}
+
+.gsh-drawer {
+  position: fixed;
+  z-index: 9997;
+  top: 0;
+  right: 0;
+  /* flex, not grid: the picker between the grant button and the mount
+     (see GlobalSuperhostDrawer.tsx) is conditional, so the number of
+     children here varies. A fixed grid-template-rows count silently
+     mis-assigns tracks when that child is absent/present; flex with
+     flex: none on the fixed rows and flex: 1 on the mount (below)
+     doesn't care how many siblings precede it. */
+  display: flex;
+  flex-direction: column;
+  width: min(560px, 100vw);
+  height: 100dvh;
+  border-left: 1px solid #00ff66;
+  background: var(--ink);
+  color: #00ff66;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(100%);
+  transition: transform 260ms var(--ease-expo-out), opacity 180ms ease-out;
+}
+
+.gsh-drawer-portal[data-open="true"] .gsh-drawer {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(0);
+}
+
+.gsh-drawer-header,
+.gsh-drawer-picker {
+  flex: none;
+}
+
+/* Real wayfinding (which property, or the whole portfolio, is in scope)
+   belongs here, but it doesn't need a hero-sized headline to say it --
+   this used to be a 4-line serif display heading eating a big chunk of
+   the drawer's fixed height before any real log content even started.
+   One compact row: label left, scope name right, same baseline. */
+.gsh-drawer-header {
+  display: flex;
+  min-height: 48px;
+  padding: 12px 22px;
+  border-bottom: 1px solid #00994d;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.gsh-drawer-header > div {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+
+.gsh-drawer-header span {
+  flex: none;
+  font-family: var(--font-meta);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #00994d;
+}
+
+.gsh-drawer-header h2 {
+  margin: 0;
+  overflow: hidden;
+  font-family: var(--font-meta);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gsh-drawer-close {
+  width: 38px;
+  height: 38px;
+  flex: none;
+  border: 1px solid #00994d;
+  background: transparent;
+  color: #00ff66;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.gsh-drawer-close:hover { background: #00994d; color: var(--ink); }
+
+.gsh-drawer-picker {
+  padding: 16px 22px;
+  border-bottom: 1px solid #00994d;
+}
+
+.gsh-drawer-picker-label {
+  margin: 0;
+  font-family: var(--font-meta);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #00994d;
+  cursor: pointer;
+  list-style: none;
+}
+
+.gsh-drawer-picker-label::-webkit-details-marker {
+  display: none;
+}
+
+.gsh-drawer-picker-label::before {
+  content: "+ ";
+}
+
+.gsh-drawer-picker[open] .gsh-drawer-picker-label::before {
+  content: "- ";
+}
+
+.gsh-drawer-picker-label:hover,
+.gsh-drawer-picker-label:focus-visible {
+  color: #00ff66;
+}
+
+.gsh-drawer-picker-list {
+  display: grid;
+  gap: 2px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.gsh-drawer-picker-option {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #00994d;
+  background: transparent;
+  color: #00ff66;
+  font-family: var(--font-meta);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  text-align: left;
+  cursor: pointer;
+  transition: background 120ms var(--ease-expo-out, ease-out), color 120ms var(--ease-expo-out, ease-out);
+}
+
+.gsh-drawer-picker-option:hover,
+.gsh-drawer-picker-option:focus-visible {
+  background: #00ff66;
+  color: var(--ink);
+  outline: none;
+}
+
+.gsh-drawer-mount {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  padding: 22px;
+  overflow: hidden;
+}
+
+/* SuperhostMount is built for inline placement on a paper background --
+   this overrides its spacing/border for the dark drawer context without
+   touching the shared component itself. Also made a flex column here so
+   the terminal (flex: 1, see below) fills whatever room is left above
+   the composer and scrolls within itself, instead of the composer
+   getting pushed off the bottom of the drawer as history grows. */
+.gsh-drawer-mount .superhost-mount {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+  margin: 0;
+  border: 0;
+}
+
+.gsh-drawer-mount .superhost-terminal {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+}
+
+.gsh-drawer-mount .superhost-mount-heading > span {
+  color: #00994d;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gsh-drawer { transition: none; }
+}
+
+@media (max-width: 640px) {
+  .gsh-drawer-header { min-height: 72px; padding: 14px 16px; }
+  .gsh-drawer-mount { padding: 16px; }
+}

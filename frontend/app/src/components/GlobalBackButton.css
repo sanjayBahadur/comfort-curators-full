@@ -1,0 +1,39 @@
+.global-back-button {
+  position: fixed;
+  z-index: 91;
+  top: 16px;
+  left: 16px;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--ink);
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-meta);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 150ms var(--ease-expo-out);
+}
+
+.global-back-button:hover,
+.global-back-button:focus-visible {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.global-back-button:focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: 3px;
+}
+
+@media (max-width: 640px) {
+  .global-back-button {
+    top: 12px;
+    left: 12px;
+    min-height: 32px;
+    padding: 0 10px;
+    font-size: 9px;
+  }
+}

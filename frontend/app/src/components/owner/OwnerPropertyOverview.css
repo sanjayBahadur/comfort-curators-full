@@ -1,0 +1,73 @@
+.owner-overview { border-bottom: var(--rule); }
+.owner-overview-selector { display: grid; min-height: 128px; border-bottom: var(--rule); grid-template-columns: 1fr auto; }
+.owner-overview-selector > div:first-child { display: grid; padding: 22px 28px; align-content: center; gap: 6px; }
+.owner-overview-selector span, .owner-overview-selector small, .owner-overview-metrics span, .owner-overview-metrics small, .owner-overview-map-panel > div, .owner-mini-calendar header span, .owner-mini-calendar footer, .owner-overview-essentials span, .owner-overview-essentials a { font-family: "JetBrains Mono Variable", monospace; font-size: 8px; letter-spacing: .07em; text-transform: uppercase; }
+.owner-overview-selector > div:first-child > span, .owner-overview-selector small { color: var(--ink-60); }
+.owner-overview-selector > div:first-child > strong { font-family: "Instrument Serif", Georgia, serif; font-size: clamp(34px, 4vw, 58px); font-weight: 400; letter-spacing: -.035em; line-height: .9; }
+.owner-overview-carousel { display: grid; min-width: 220px; border-left: var(--rule); grid-template-columns: 64px 1fr 64px; }
+.owner-overview-carousel button, .owner-overview-carousel span { display: grid; border: 0; background: var(--paper); color: var(--ink); place-items: center; }
+.owner-overview-carousel button { font-size: 20px; }
+.owner-overview-carousel button:first-child, .owner-overview-carousel span { border-right: var(--rule); }
+.owner-overview-carousel button:hover:not(:disabled) { background: var(--ink); color: var(--paper); }
+.owner-overview-carousel button:disabled { color: var(--ink-40); }
+.owner-overview-metrics { display: grid; border-bottom: var(--rule); grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.owner-overview-metrics > div { display: grid; min-height: 118px; padding: 17px 18px; border-right: var(--rule); align-content: space-between; }
+.owner-overview-metrics > div:last-child { border-right: 0; }
+.owner-overview-metrics span, .owner-overview-metrics small { color: var(--ink-60); }
+.owner-overview-metrics strong, .owner-overview-metrics > div > span + span { font-family: "Archivo Black", sans-serif; font-size: clamp(25px, 3vw, 44px); font-variant-numeric: tabular-nums; letter-spacing: -.055em; line-height: .85; }
+.owner-overview-body { display: grid; min-height: 430px; grid-template-columns: minmax(0, 1.25fr) minmax(420px, .75fr); }
+.owner-overview-map-panel { position: relative; z-index: 0; min-width: 0; border-right: var(--rule); isolation: isolate; }
+.owner-overview-map { position: absolute; inset: 0 0 42px; background: var(--paper-2); }
+.owner-overview-map-panel > div:last-child { position: absolute; right: 0; bottom: 0; left: 0; z-index: 500; display: flex; min-height: 42px; padding: 0 16px; border-top: var(--rule); background: var(--paper); align-items: center; justify-content: space-between; }
+.owner-map-marker-wrap { border: 0; background: transparent; }
+.owner-map-marker { display: grid; width: 54px; height: 54px; border: 2px solid var(--ink); background: var(--paper); place-items: center; }
+.owner-map-marker i { width: 14px; height: 14px; background: var(--ink); }
+.owner-map-marker b { font: 7px "JetBrains Mono Variable", monospace; letter-spacing: .06em; }
+.owner-overview-map .leaflet-control-attribution { font: 7px "JetBrains Mono Variable", monospace; }
+.owner-overview-map .leaflet-control-zoom { margin: 0 12px 12px 0; border: var(--rule); border-radius: 0; }
+.owner-overview-map .leaflet-control-zoom a { border-radius: 0; background: var(--paper); color: var(--ink); }
+.owner-overview-calendar-panel { display: grid; min-width: 0; grid-template-rows: 1fr auto; }
+.owner-mini-calendar { display: grid; padding: 22px; align-content: start; }
+.owner-mini-calendar > header { display: flex; margin-bottom: 16px; align-items: baseline; justify-content: space-between; }
+.owner-mini-calendar > header strong { font-family: "Instrument Serif", Georgia, serif; font-size: 26px; font-weight: 400; }
+.owner-mini-weekdays, .owner-mini-days { display: grid; grid-template-columns: repeat(7, 1fr); }
+.owner-mini-weekdays span { padding: 5px; border-top: var(--rule); border-right: var(--rule); text-align: center; font: 8px "JetBrains Mono Variable", monospace; }
+.owner-mini-weekdays span:first-child { border-left: var(--rule); }
+.owner-mini-days time { position: relative; display: grid; aspect-ratio: 1.18; border-right: var(--rule); border-bottom: var(--rule); place-items: center; font: 9px "JetBrains Mono Variable", monospace; }
+.owner-mini-days time:nth-child(7n + 1) { border-left: var(--rule); }
+.owner-mini-days time[data-outside="true"] { background: var(--paper-2); color: var(--ink-40); }
+.owner-mini-days time[data-occupied="true"] { background: repeating-linear-gradient(135deg, var(--paper) 0, var(--paper) 5px, #c5c5c2 5px, #c5c5c2 7px); }
+.owner-mini-days time[data-today="true"] { box-shadow: inset 0 0 0 2px var(--ink); }
+.owner-mini-days time b { position: relative; z-index: 1; padding: 2px; background: var(--paper); }
+.owner-mini-calendar footer { display: flex; padding-top: 11px; justify-content: space-between; color: var(--ink-60); }
+.owner-mini-calendar footer i { display: inline-block; width: 16px; height: 7px; margin-right: 5px; background: repeating-linear-gradient(135deg, var(--paper) 0, var(--paper) 3px, #999 3px, #999 4px); }
+.owner-overview-essentials { display: grid; min-height: 72px; border-top: var(--rule); grid-template-columns: 1fr 1fr auto; }
+.owner-overview-essentials > div { display: grid; padding: 12px 14px; border-right: var(--rule); align-content: center; gap: 6px; }
+.owner-overview-essentials strong { font-size: 11px; }
+.owner-overview-essentials a { display: grid; min-width: 126px; padding: 10px; place-items: center; font-weight: 700; }
+.owner-overview-essentials a:hover { background: var(--ink); color: var(--paper); }
+.owner-overview-calendar-state { display: grid; padding: 24px; place-content: center; gap: 16px; text-align: center; font-family: "JetBrains Mono Variable", monospace; }
+.owner-overview-calendar-state button { padding: 12px; border: var(--rule); background: var(--paper); }
+
+@media (max-width: 1100px) {
+  .owner-overview-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .owner-overview-metrics > div:nth-child(3) { border-right: 0; }
+  .owner-overview-metrics > div:nth-child(-n + 3) { border-bottom: var(--rule); }
+  .owner-overview-body { grid-template-columns: 1fr; }
+  .owner-overview-map-panel { min-height: 380px; border-right: 0; border-bottom: var(--rule); }
+}
+
+@media (max-width: 620px) {
+  .owner-overview-selector { grid-template-columns: 1fr; }
+  .owner-overview-carousel { min-width: 0; min-height: 54px; border-top: var(--rule); border-left: 0; }
+  .owner-overview-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .owner-overview-metrics > div, .owner-overview-metrics > div:nth-child(3) { border-right: var(--rule); border-bottom: var(--rule); }
+  .owner-overview-metrics > div:nth-child(2n) { border-right: 0; }
+  .owner-overview-metrics > div:nth-last-child(-n + 2) { border-bottom: 0; }
+  .owner-overview-map-panel { min-height: 330px; }
+  .owner-overview-map-panel > div:last-child { align-items: flex-start; flex-direction: column; justify-content: center; gap: 3px; }
+  .owner-mini-calendar { padding: 14px; }
+  .owner-mini-days time { aspect-ratio: 1; }
+  .owner-overview-essentials { grid-template-columns: 1fr 1fr; }
+  .owner-overview-essentials a { min-height: 48px; border-top: var(--rule); grid-column: 1 / -1; }
+}

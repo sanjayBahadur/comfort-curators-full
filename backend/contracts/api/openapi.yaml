@@ -1,0 +1,782 @@
+openapi: 3.1.0
+info:
+  title: Comfort Curators V0 API Contract Floor
+  version: 0.1.0
+  description: >-
+    Minimum public and operational REST surface for the Comfort Curators V0
+    modular monolith. Domain requirements and authorization rules in the
+    protected product files remain normative.
+servers:
+  - url: http://localhost:8080
+security:
+  - bearerAuth: []
+tags:
+  - {name: Health}
+  - {name: Identity}
+  - {name: Tenancy}
+  - {name: Onboarding}
+  - {name: Properties}
+  - {name: Reservations}
+  - {name: Operations}
+  - {name: Workforce}
+  - {name: Fleet}
+  - {name: Catalog}
+  - {name: Inventory}
+  - {name: Maintenance}
+  - {name: Documents}
+  - {name: Billing}
+  - {name: Communications}
+  - {name: Automation}
+  - {name: Audit}
+
+paths:
+  /health/live:
+    get:
+      operationId: getLiveness
+      tags: [Health]
+      security: []
+      responses:
+        '200': {$ref: '#/components/responses/Health'}
+  /health/ready:
+    get:
+      operationId: getReadiness
+      tags: [Health]
+      security: []
+      responses:
+        '200': {$ref: '#/components/responses/Health'}
+        '503': {$ref: '#/components/responses/Error'}
+
+  /v1/sessions/otp-requests:
+    post:
+      operationId: requestOwnerOtp
+      tags: [Identity]
+      security: []
+      requestBody: {$ref: '#/components/requestBodies/Command'}
+      responses:
+        '202': {$ref: '#/components/responses/Accepted'}
+        '429': {$ref: '#/components/responses/Error'}
+  /v1/sessions/otp-verifications:
+    post:
+      operationId: verifyOwnerOtp
+      tags: [Identity]
+      security: []
+      requestBody: {$ref: '#/components/requestBodies/Command'}
+      responses:
+        '200': {$ref: '#/components/responses/Resource'}
+        '400': {$ref: '#/components/responses/Error'}
+  /v1/sessions/{session_id}/revocations:
+    post:
+      operationId: revokeSession
+      tags: [Identity]
+      parameters: [{$ref: '#/components/parameters/SessionId'}]
+      requestBody: {$ref: '#/components/requestBodies/Command'}
+      responses:
+        '202': {$ref: '#/components/responses/Accepted'}
+        '404': {$ref: '#/components/responses/Error'}
+
+  /v1/tenants/{tenant_id}/support-access-grants:
+    post:
+      operationId: createSupportAccessGrant
+      tags: [Tenancy]
+      parameters: [{$ref: '#/components/parameters/TenantId'}]
+      requestBody: {$ref: '#/components/requestBodies/Command'}
+      responses:
+        '201': {$ref: '#/components/responses/Resource'}
+        '403': {$ref: '#/components/responses/Error'}
+  /v1/owners/onboarding-cases:
+    post:
+      operationId: startOwnerOnboarding
+      tags: [Onboarding]
+      requestBody: {$ref: '#/components/requestBodies/Command'}
+      responses:
+        '201': {$ref: '#/components/responses/Resource'}
+        '409': {$ref: '#/components/responses/Error'}
+  /v1/properties/{property_id}/inspections:
+    post:
+      operationId: recordPropertyInspection
+      tags: [Onboarding]
+      parameters: [{$ref: '#/components/parameters/PropertyId'}]
+      requestBody: {$ref: '#/components/requestBodies/Command'}
+      responses:
+        '201': {$ref: '#/components/responses/Resource'}
+        '422': {$ref: '#/components/responses/Error'}
+  /v1/properties/{property_id}/contracts:
+    post:
+      operationId: createPropertyContractVersion
+      tags: [Onboarding]
+      parameters: [{$ref: '#/components/parameters/PropertyId'}]
+      requestBody: {$ref: '#/components/requestBodies/Command'}
+      responses:
+        '201': {$ref: '#/components/responses/Resource'}
+        '409': {$ref: '#/components/responses/Error'}
+
+  /v1/properties:
+    get:
+      operationId: listProperties
+      tags: [Properties]
+      parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/Limit'}]
+      responses:
+        '200': {$ref: '#/components/responses/Collection'}
+    post:
+      operationId: createProperty
+      tags: [Properties]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/PropertyCreate'}
+      responses:
+        '201': {$ref: '#/components/responses/Resource'}
+        '422': {$ref: '#/components/responses/Error'}
+  /v1/properties/{property_id}:
+    get:
+      operationId: getProperty
+      tags: [Properties]
+      parameters: [{$ref: '#/components/parameters/PropertyId'}]
+      responses:
+        '200': {$ref: '#/components/responses/Resource'}
+        '404': {$ref: '#/components/responses/Error'}
+  /v1/properties/{property_id}/transitions:
+    post:
+      operationId: transitionProperty
+      tags: [Properties]
+      parameters: [{$ref: '#/components/parameters/PropertyId'}, {$ref: '#/components/parameters/IfMatch'}]
+      requestBody: {$ref: '#/components/requestBodies/Transition'}
+      responses:
+        '200': {$ref: '#/components/responses/Resource'}
+        '409': {$ref: '#/components/responses/Error'}
+        '422': {$ref: '#/components/responses/Error'}
+  /v1/properties/{property_id}/access-disclosures:
+    post:
+      operationId: disclosePropertyAccess
+      tags: [Properties]
+      parameters: [{$ref: '#/components/parameters/PropertyId'}]
+      requestBody: {$ref: '#/components/requestBodies/Command'}
+      responses:
+        '200': {$ref: '#/components/responses/Resource'}
+        '403': {$ref: '#/components/responses/Error'}
+
+  /v1/properties/{property_id}/calendar-feeds:
+    get:
+      operationId: listCalendarFeeds
+      tags: [Reservations]
+      parameters: [{$ref: '#/components/parameters/PropertyId'}]
+      responses:
+        '200': {$ref: '#/components/responses/Collection'}
+    post:
+      operationId: createCalendarFeed
+      tags: [Reservations]
+      parameters: [{$ref: '#/components/parameters/PropertyId'}]
+      requestBody: {$ref: '#/components/requestBodies/Command'}
+      responses:
+        '201': {$ref: '#/components/responses/Resource'}
+        '422': {$ref: '#/components/responses/Error'}
+  /v1/calendar-feeds/{feed_id}/polls:
+    post:
+      operationId: requestCalendarPoll
+      tags: [Reservations]
+      parameters: [{$ref: '#/components/parameters/FeedId'}]
+      requestBody: {$ref: '#/components/requestBodies/Command'}
+      responses:
+        '202': {$ref: '#/components/responses/Accepted'}
+  /v1/properties/{property_id}/reservations:
+    get:
+      operationId: listPropertyReservations
+      tags: [Reservations]
+      parameters: [{$ref: '#/components/parameters/PropertyId'}, {$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/Limit'}]
+      responses:
+        '200': {$ref: '#/components/responses/Collection'}
+  /v1/reservation-conflicts/{conflict_id}/resolutions:
+    post:
+      operationId: resolveReservationConflict
+      tags: [Reservations]
+      parameters: [{$ref: '#/components/parameters/ConflictId'}]
+      requestBody: {$ref: '#/components/requestBodies/Command'}
+      responses:
+        '200': {$ref: '#/components/responses/Resource'}
+        '409': {$ref: '#/components/responses/Error'}
+
+  /v1/tickets:
+    get:
+      operationId: listTickets
+      tags: [Operations]
+      parameters: [{$ref: '#/components/parameters/PropertyFilter'}, {$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/Limit'}]
+      responses:
+        '200': {$ref: '#/components/responses/Collection'}
+    post:
+      operationId: createTicket
+      tags: [Operations]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/TicketCreate'}
+      responses:
+        '201': {$ref: '#/components/responses/Resource'}
+        '422': {$ref: '#/components/responses/Error'}
+  /v1/tickets/{ticket_id}:
+    get:
+      operationId: getTicket
+      tags: [Operations]
+      parameters: [{$ref: '#/components/parameters/TicketId'}]
+      responses:
+        '200': {$ref: '#/components/responses/Resource'}
+        '404': {$ref: '#/components/responses/Error'}
+  /v1/tickets/{ticket_id}/transitions:
+    post:
+      operationId: transitionTicket
+      tags: [Operations]
+      parameters: [{$ref: '#/components/parameters/TicketId'}, {$ref: '#/components/parameters/IfMatch'}]
+      requestBody: {$ref: '#/components/requestBodies/Transition'}
+      responses:
+        '200': {$ref: '#/components/responses/Resource'}
+        '409': {$ref: '#/components/responses/Error'}
+        '422': {$ref: '#/components/responses/Error'}
+  /v1/tickets/{ticket_id}/assignments:
+    post:
+      operationId: assignTicket
+      tags: [Operations]
+      parameters: [{$ref: '#/components/parameters/TicketId'}]
+      requestBody: {$ref: '#/components/requestBodies/Command'}
+      responses:
+        '201': {$ref: '#/components/responses/Resource'}
+        '422': {$ref: '#/components/responses/Error'}
+  /v1/tickets/{ticket_id}/evidence:
+    post:
+      operationId: addTicketEvidence
+      tags: [Operations]
+      parameters: [{$ref: '#/components/parameters/TicketId'}]
+      requestBody: {$ref: '#/components/requestBodies/Command'}
+      responses:
+        '201': {$ref: '#/components/responses/Resource'}
+  /v1/tickets/{ticket_id}/checklist-syncs:
+    post:
+      operationId: syncTicketChecklist
+      tags: [Operations]
+      parameters: [{$ref: '#/components/parameters/TicketId'}]
+      requestBody: {$ref: '#/components/requestBodies/Command'}
+      responses:
+        '200': {$ref: '#/components/responses/Resource'}
+        '409': {$ref: '#/components/responses/Error'}
+  /v1/incidents:
+    post:
+      operationId: reportIncident
+      tags: [Operations]
+      requestBody: {$ref: '#/components/requestBodies/Command'}
+      responses:
+        '201': {$ref: '#/components/responses/Resource'}
+
+  /v1/workers:
+    get:
+      operationId: listWorkers
+      tags: [Workforce]
+      parameters: [{$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/Limit'}]
+      responses:
+        '200': {$ref: '#/components/responses/Collection'}
+    post:
+      operationId: createWorker
+      tags: [Workforce]
+      requestBody: {$ref: '#/components/requestBodies/Command'}
+      responses:
+        '201': {$ref: '#/components/responses/Resource'}
+        '422': {$ref: '#/components/responses/Error'}
+  /v1/workers/{worker_id}/availability-windows:
+    post:
+      operationId: createAvailabilityWindow
+      tags: [Workforce]
+      parameters: [{$ref: '#/components/parameters/WorkerId'}]
+      requestBody: {$ref: '#/components/requestBodies/Command'}
+      responses:
+        '201': {$ref: '#/components/responses/Resource'}
+  /v1/time-entries:
+    post:
+      operationId: recordTimeEntry
+      tags: [Workforce]
+      requestBody: {$ref: '#/components/requestBodies/Command'}
+      responses:
+        '201': {$ref: '#/components/responses/Resource'}
+  /v1/grievances:
+    post:
+      operationId: submitGrievance
+      tags: [Workforce]
+      requestBody: {$ref: '#/components/requestBodies/Command'}
+      responses:
+        '201': {$ref: '#/components/responses/Resource'}
+  /v1/adverse-actions/{action_id}/reviews:
+    post:
+      operationId: reviewAdverseAction
+      tags: [Workforce]
+      parameters: [{$ref: '#/components/parameters/ActionId'}]
+      requestBody: {$ref: '#/components/requestBodies/Command'}
+      responses:
+        '200': {$ref: '#/components/responses/Resource'}
+
+  /v1/fleet-assets:
+    get:
+      operationId: listFleetAssets
+      tags: [Fleet]
+      responses:
+        '200': {$ref: '#/components/responses/Collection'}
+    post:
+      operationId: createFleetAsset
+      tags: [Fleet]
+      requestBody: {$ref: '#/components/requestBodies/Command'}
+      responses:
+        '201': {$ref: '#/components/responses/Resource'}
+  /v1/fleet-assets/{asset_id}/custody-events:
+    post:
+      operationId: recordFleetCustody
+      tags: [Fleet]
+      parameters: [{$ref: '#/components/parameters/AssetId'}]
+      requestBody: {$ref: '#/components/requestBodies/Command'}
+      responses:
+        '201': {$ref: '#/components/responses/Resource'}
+
+  /v1/catalog/items:
+    get:
+      operationId: listCatalogItems
+      tags: [Catalog]
+      responses:
+        '200': {$ref: '#/components/responses/Collection'}
+    post:
+      operationId: createCatalogItem
+      tags: [Catalog]
+      requestBody: {$ref: '#/components/requestBodies/Command'}
+      responses:
+        '201': {$ref: '#/components/responses/Resource'}
+  /v1/properties/{property_id}/package-versions:
+    post:
+      operationId: createPropertyPackageVersion
+      tags: [Catalog]
+      parameters: [{$ref: '#/components/parameters/PropertyId'}]
+      requestBody: {$ref: '#/components/requestBodies/Command'}
+      responses:
+        '201': {$ref: '#/components/responses/Resource'}
+
+  /v1/inventory/movements:
+    post:
+      operationId: postInventoryMovement
+      tags: [Inventory]
+      requestBody: {$ref: '#/components/requestBodies/Command'}
+      responses:
+        '201': {$ref: '#/components/responses/Resource'}
+        '409': {$ref: '#/components/responses/Error'}
+        '422': {$ref: '#/components/responses/Error'}
+  /v1/inventory/counts:
+    post:
+      operationId: createInventoryCount
+      tags: [Inventory]
+      requestBody: {$ref: '#/components/requestBodies/Command'}
+      responses:
+        '201': {$ref: '#/components/responses/Resource'}
+  /v1/reorder-proposals:
+    get:
+      operationId: listReorderProposals
+      tags: [Inventory]
+      responses:
+        '200': {$ref: '#/components/responses/Collection'}
+  /v1/reorder-proposals/{proposal_id}/approvals:
+    post:
+      operationId: decideReorderProposal
+      tags: [Inventory]
+      parameters: [{$ref: '#/components/parameters/ProposalId'}]
+      requestBody: {$ref: '#/components/requestBodies/Command'}
+      responses:
+        '200': {$ref: '#/components/responses/Resource'}
+
+  /v1/maintenance/requests:
+    post:
+      operationId: createMaintenanceRequest
+      tags: [Maintenance]
+      requestBody: {$ref: '#/components/requestBodies/Command'}
+      responses:
+        '201': {$ref: '#/components/responses/Resource'}
+  /v1/maintenance/requests/{request_id}/approvals:
+    post:
+      operationId: decideMaintenanceRequest
+      tags: [Maintenance]
+      parameters: [{$ref: '#/components/parameters/RequestId'}]
+      requestBody: {$ref: '#/components/requestBodies/Command'}
+      responses:
+        '200': {$ref: '#/components/responses/Resource'}
+
+  /v1/documents:
+    post:
+      operationId: createDocument
+      tags: [Documents]
+      requestBody: {$ref: '#/components/requestBodies/Command'}
+      responses:
+        '201': {$ref: '#/components/responses/Resource'}
+  /v1/documents/{document_id}/versions:
+    post:
+      operationId: createDocumentVersion
+      tags: [Documents]
+      parameters: [{$ref: '#/components/parameters/DocumentId'}]
+      requestBody: {$ref: '#/components/requestBodies/Command'}
+      responses:
+        '201': {$ref: '#/components/responses/Resource'}
+  /v1/documents/{document_id}/reviews:
+    post:
+      operationId: reviewDocument
+      tags: [Documents]
+      parameters: [{$ref: '#/components/parameters/DocumentId'}]
+      requestBody: {$ref: '#/components/requestBodies/Command'}
+      responses:
+        '200': {$ref: '#/components/responses/Resource'}
+  /v1/submission-packets/{packet_id}/confirmations:
+    post:
+      operationId: confirmSubmissionPacket
+      tags: [Documents]
+      parameters: [{$ref: '#/components/parameters/PacketId'}]
+      requestBody: {$ref: '#/components/requestBodies/Command'}
+      responses:
+        '200': {$ref: '#/components/responses/Resource'}
+
+  /v1/billing/charges:
+    post:
+      operationId: createCharge
+      tags: [Billing]
+      requestBody: {$ref: '#/components/requestBodies/MoneyCommand'}
+      responses:
+        '201': {$ref: '#/components/responses/Resource'}
+  /v1/billing/invoices:
+    post:
+      operationId: issueInvoice
+      tags: [Billing]
+      requestBody: {$ref: '#/components/requestBodies/Command'}
+      responses:
+        '201': {$ref: '#/components/responses/Resource'}
+        '409': {$ref: '#/components/responses/Error'}
+  /v1/billing/credits:
+    post:
+      operationId: issueCredit
+      tags: [Billing]
+      requestBody: {$ref: '#/components/requestBodies/MoneyCommand'}
+      responses:
+        '201': {$ref: '#/components/responses/Resource'}
+  /v1/financial-approvals/{approval_id}/decisions:
+    post:
+      operationId: decideFinancialApproval
+      tags: [Billing]
+      parameters: [{$ref: '#/components/parameters/ApprovalId'}]
+      requestBody: {$ref: '#/components/requestBodies/Command'}
+      responses:
+        '200': {$ref: '#/components/responses/Resource'}
+        '403': {$ref: '#/components/responses/Error'}
+  /v1/accounting-exports:
+    post:
+      operationId: createAccountingExport
+      tags: [Billing]
+      requestBody: {$ref: '#/components/requestBodies/Command'}
+      responses:
+        '202': {$ref: '#/components/responses/Accepted'}
+  /v1/reports/property-contribution:
+    get:
+      operationId: getPropertyContributionReport
+      tags: [Billing]
+      parameters: [{$ref: '#/components/parameters/PropertyFilter'}]
+      responses:
+        '200': {$ref: '#/components/responses/Collection'}
+
+  /v1/communications/drafts:
+    post:
+      operationId: createCommunicationDraft
+      tags: [Communications]
+      requestBody: {$ref: '#/components/requestBodies/Command'}
+      responses:
+        '201': {$ref: '#/components/responses/Resource'}
+  /v1/communications/drafts/{draft_id}/reviews:
+    post:
+      operationId: reviewCommunicationDraft
+      tags: [Communications]
+      parameters: [{$ref: '#/components/parameters/DraftId'}]
+      requestBody: {$ref: '#/components/requestBodies/Command'}
+      responses:
+        '200': {$ref: '#/components/responses/Resource'}
+  /v1/communications/deliveries:
+    post:
+      operationId: deliverApprovedCommunication
+      tags: [Communications]
+      requestBody: {$ref: '#/components/requestBodies/Command'}
+      responses:
+        '202': {$ref: '#/components/responses/Accepted'}
+
+  /v1/agent-runs:
+    post:
+      operationId: createAgentRun
+      tags: [Automation]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/AgentRunCreate'}
+      responses:
+        '202': {$ref: '#/components/responses/Accepted'}
+        '409': {$ref: '#/components/responses/Error'}
+  /v1/agent-runs/{run_id}:
+    get:
+      operationId: getAgentRun
+      tags: [Automation]
+      parameters: [{$ref: '#/components/parameters/RunId'}]
+      responses:
+        '200': {$ref: '#/components/responses/Resource'}
+        '404': {$ref: '#/components/responses/Error'}
+  /v1/agent-runs/{run_id}/events:
+    get:
+      operationId: listAgentRunEvents
+      tags: [Automation]
+      parameters: [{$ref: '#/components/parameters/RunId'}, {$ref: '#/components/parameters/Cursor'}]
+      responses:
+        '200': {$ref: '#/components/responses/Collection'}
+  /v1/agent-runs/{run_id}/cancellations:
+    post:
+      operationId: cancelAgentRun
+      tags: [Automation]
+      parameters: [{$ref: '#/components/parameters/RunId'}]
+      requestBody: {$ref: '#/components/requestBodies/Command'}
+      responses:
+        '202': {$ref: '#/components/responses/Accepted'}
+  /v1/superhost/runs:
+    post:
+      operationId: createSuperhostRun
+      tags: [Automation]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/AgentRunCreate'}
+      responses:
+        '202': {$ref: '#/components/responses/Accepted'}
+  /v1/jarvis/runs:
+    post:
+      operationId: createJarvisRunDeprecated
+      deprecated: true
+      description: >-
+        Deprecated redirect alias preserved for one release, returning 308
+        Permanent Redirect to /v1/superhost/runs. The client should resend the
+        same method and body per HTTP semantics.
+      tags: [Automation]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/AgentRunCreate'}
+      responses:
+        '308':
+          description: Permanent redirect to /v1/superhost/runs
+          headers:
+            Location:
+              schema: {type: string}
+  /v1/hermes/drafts:
+    post:
+      operationId: createHermesDraft
+      tags: [Automation]
+      requestBody: {$ref: '#/components/requestBodies/Command'}
+      responses:
+        '202': {$ref: '#/components/responses/Accepted'}
+
+  /v1/audit-events:
+    get:
+      operationId: listAuditEvents
+      tags: [Audit]
+      parameters: [{$ref: '#/components/parameters/PropertyFilter'}, {$ref: '#/components/parameters/Cursor'}, {$ref: '#/components/parameters/Limit'}]
+      responses:
+        '200': {$ref: '#/components/responses/Collection'}
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: opaque
+
+  parameters:
+    TenantId: {name: tenant_id, in: path, required: true, schema: {$ref: '#/components/schemas/Identifier'}}
+    PropertyId: {name: property_id, in: path, required: true, schema: {$ref: '#/components/schemas/Identifier'}}
+    SessionId: {name: session_id, in: path, required: true, schema: {$ref: '#/components/schemas/Identifier'}}
+    FeedId: {name: feed_id, in: path, required: true, schema: {$ref: '#/components/schemas/Identifier'}}
+    ConflictId: {name: conflict_id, in: path, required: true, schema: {$ref: '#/components/schemas/Identifier'}}
+    TicketId: {name: ticket_id, in: path, required: true, schema: {$ref: '#/components/schemas/Identifier'}}
+    WorkerId: {name: worker_id, in: path, required: true, schema: {$ref: '#/components/schemas/Identifier'}}
+    ActionId: {name: action_id, in: path, required: true, schema: {$ref: '#/components/schemas/Identifier'}}
+    AssetId: {name: asset_id, in: path, required: true, schema: {$ref: '#/components/schemas/Identifier'}}
+    ProposalId: {name: proposal_id, in: path, required: true, schema: {$ref: '#/components/schemas/Identifier'}}
+    RequestId: {name: request_id, in: path, required: true, schema: {$ref: '#/components/schemas/Identifier'}}
+    DocumentId: {name: document_id, in: path, required: true, schema: {$ref: '#/components/schemas/Identifier'}}
+    PacketId: {name: packet_id, in: path, required: true, schema: {$ref: '#/components/schemas/Identifier'}}
+    ApprovalId: {name: approval_id, in: path, required: true, schema: {$ref: '#/components/schemas/Identifier'}}
+    DraftId: {name: draft_id, in: path, required: true, schema: {$ref: '#/components/schemas/Identifier'}}
+    RunId: {name: run_id, in: path, required: true, schema: {$ref: '#/components/schemas/Identifier'}}
+    Cursor: {name: cursor, in: query, required: false, schema: {type: string, maxLength: 512}}
+    Limit: {name: limit, in: query, required: false, schema: {type: integer, minimum: 1, maximum: 200, default: 50}}
+    PropertyFilter: {name: property_id, in: query, required: false, schema: {$ref: '#/components/schemas/Identifier'}}
+    IfMatch: {name: If-Match, in: header, required: true, schema: {type: string}}
+
+  requestBodies:
+    Command:
+      required: true
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/CommandEnvelope'}
+    Transition:
+      required: true
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/TransitionCommand'}
+    MoneyCommand:
+      required: true
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/MoneyCommand'}
+
+  responses:
+    Health:
+      description: Process health
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Health'}
+    Accepted:
+      description: Durable command accepted
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Accepted'}
+    Resource:
+      description: Resource representation
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Resource'}
+    Collection:
+      description: Cursor-paginated resource collection
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Collection'}
+    Error:
+      description: Stable error response
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Error'}
+
+  schemas:
+    Identifier:
+      type: string
+      minLength: 16
+      maxLength: 64
+      pattern: '^[A-Za-z0-9_-]+$'
+    CommandEnvelope:
+      type: object
+      additionalProperties: false
+      required: [idempotency_key, data]
+      properties:
+        idempotency_key: {type: string, minLength: 8, maxLength: 128}
+        reason: {type: string, maxLength: 1000}
+        data: {type: object, additionalProperties: true}
+    TransitionCommand:
+      type: object
+      additionalProperties: false
+      required: [idempotency_key, to_state, reason]
+      properties:
+        idempotency_key: {type: string, minLength: 8, maxLength: 128}
+        to_state: {type: string, minLength: 1, maxLength: 64}
+        reason: {type: string, minLength: 1, maxLength: 1000}
+        evidence_ids:
+          type: array
+          items: {$ref: '#/components/schemas/Identifier'}
+    Money:
+      type: object
+      additionalProperties: false
+      required: [minor_units, currency]
+      properties:
+        minor_units: {type: integer}
+        currency: {type: string, pattern: '^[A-Z]{3}$'}
+    MoneyCommand:
+      type: object
+      additionalProperties: false
+      required: [idempotency_key, amount, data]
+      properties:
+        idempotency_key: {type: string, minLength: 8, maxLength: 128}
+        amount: {$ref: '#/components/schemas/Money'}
+        reason: {type: string, maxLength: 1000}
+        data: {type: object, additionalProperties: true}
+    PropertyCreate:
+      type: object
+      additionalProperties: false
+      required: [idempotency_key, tenant_id, owner_authority_id, service_address, timezone, status]
+      properties:
+        idempotency_key: {type: string, minLength: 8, maxLength: 128}
+        tenant_id: {$ref: '#/components/schemas/Identifier'}
+        owner_authority_id: {$ref: '#/components/schemas/Identifier'}
+        service_address: {type: object, additionalProperties: true}
+        timezone: {type: string, default: Asia/Kolkata}
+        status:
+          type: string
+          enum: [lead, qualifying, onboarding, remediation, ready_inactive, active, paused, suspended, offboarding, archived]
+        maximum_occupancy: {type: integer, minimum: 1}
+        emergency_contacts: {type: array, items: {type: object, additionalProperties: true}}
+    TicketCreate:
+      type: object
+      additionalProperties: false
+      required: [idempotency_key, tenant_id, property_id, type, requested_window, reason]
+      properties:
+        idempotency_key: {type: string, minLength: 8, maxLength: 128}
+        tenant_id: {$ref: '#/components/schemas/Identifier'}
+        property_id: {$ref: '#/components/schemas/Identifier'}
+        type:
+          type: string
+          enum: [turnover, pre_arrival_inspection, restock, incident, routine_maintenance, specialist_vendor_request, property_onboarding, document_review, inventory_count]
+        requested_window: {type: object, additionalProperties: true}
+        checklist_version_id: {$ref: '#/components/schemas/Identifier'}
+        reason: {type: string, minLength: 1, maxLength: 1000}
+    AgentRunCreate:
+      type: object
+      additionalProperties: false
+      required: [idempotency_key, run_kind, tenant_id, property_id, trigger_type, trigger_id, correlation_id]
+      properties:
+        idempotency_key: {type: string, minLength: 8, maxLength: 128}
+        run_kind: {type: string, enum: [superhost, hermes]}
+        tenant_id: {$ref: '#/components/schemas/Identifier'}
+        property_id: {$ref: '#/components/schemas/Identifier'}
+        trigger_type: {type: string, maxLength: 64}
+        trigger_id: {$ref: '#/components/schemas/Identifier'}
+        correlation_id: {$ref: '#/components/schemas/Identifier'}
+        purpose: {type: string, maxLength: 500}
+    Health:
+      type: object
+      additionalProperties: false
+      required: [status, time]
+      properties:
+        status: {type: string, enum: [ok, degraded]}
+        time: {type: string, format: date-time}
+        checks: {type: object, additionalProperties: {type: string}}
+    Accepted:
+      type: object
+      additionalProperties: false
+      required: [request_id, status, resource_id]
+      properties:
+        request_id: {$ref: '#/components/schemas/Identifier'}
+        status: {type: string, enum: [accepted, queued]}
+        resource_id: {$ref: '#/components/schemas/Identifier'}
+    Resource:
+      type: object
+      required: [id, version, data]
+      properties:
+        id: {$ref: '#/components/schemas/Identifier'}
+        version: {type: integer, minimum: 1}
+        data: {type: object, additionalProperties: true}
+    Collection:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items: {type: array, items: {$ref: '#/components/schemas/Resource'}}
+        next_cursor: {type: [string, 'null']}
+    Error:
+      type: object
+      additionalProperties: false
+      required: [request_id, code, message]
+      properties:
+        request_id: {$ref: '#/components/schemas/Identifier'}
+        code: {type: string, pattern: '^[A-Z0-9_]+$'}
+        message: {type: string, maxLength: 1000}
+        details: {type: object, additionalProperties: true}
+
+
