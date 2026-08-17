@@ -244,7 +244,18 @@
   transition: transform 180ms var(--ease-expo-out), opacity 150ms linear;
 }
 
-.shop-product-open { display: grid; width: 100%; min-width: 0; padding: 0; border: 0; background: var(--paper); color: var(--ink); text-align: left; cursor: pointer; }
+/* grid-template-columns is load-bearing, not decorative: without it this
+   grid's single implicit column sizes itself off its widest child's
+   max-content instead of stretching to fill the 262px card. The photo
+   inside .shop-product-visual is a replaced element, so its own natural
+   aspect ratio leaks into that max-content calculation -- on Chrome this
+   let portrait/landscape product photos blow their card up to their own
+   intrinsic aspect ratio (confirmed live: a 392x800 photo rendered its
+   card at 459x805, nearly 3x taller than its 262px-wide neighbors),
+   overflowing into the rows above and below it. Forcing the column to
+   minmax(0, 1fr) makes it always match the card's real width, so
+   aspect-ratio: 1 on .shop-product-visual has a stable box to square. */
+.shop-product-open { display: grid; grid-template-columns: minmax(0, 1fr); width: 100%; min-width: 0; padding: 0; border: 0; background: var(--paper); color: var(--ink); text-align: left; cursor: pointer; }
 
 .shop-product-card::after {
   position: absolute;
@@ -271,6 +282,13 @@
   display: grid;
   position: relative;
   aspect-ratio: 1;
+  /* Grid items get an automatic min-height: auto, which is content-based --
+     for a box holding a replaced element (the product photo), that content
+     minimum comes from the photo's own natural aspect ratio, not from this
+     box's own aspect-ratio: 1. Left at auto, a portrait photo's real
+     height could still win over the square this box asks for. Pinning it
+     to 0 is what makes aspect-ratio: 1 actually final. */
+  min-height: 0;
   border-bottom: var(--rule);
   place-items: center;
   background: var(--paper-2);

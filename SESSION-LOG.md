@@ -208,6 +208,35 @@ the same path isn't retried blind.
   `seed.ts` changed. — `scripts/seed.ts` and about a dozen frontend/backend
   files, full list in the commit diff.
 
+## Catalog grid layout broken in Chrome (product cards overflowing into each other)
+
+- **Reported live**: on the package/catalog page, some product cards'
+  photos overflowed way past their own card -- spilling up into the row
+  above and down into the row below, with the card's real name/price
+  shoved out of view and its ADD button floating mid-image. Confirmed via
+  direct DOM measurement (not guessed): a portrait product photo
+  (392x800px natural size) was rendering its `.shop-product-visual` box
+  at 459x805px instead of the expected 262x262 square -- nearly 3x too
+  tall, and not even square despite `aspect-ratio: 1` being set and
+  correctly computed on the element. Root cause, confirmed in two parts:
+  1. `.shop-product-open`'s implicit single-column grid had no
+     `grid-template-columns`, so that column sized itself off its
+     widest child's max-content instead of stretching to the card's real
+     width -- and since the photo is a replaced element, its own natural
+     aspect ratio fed into that max-content calculation.
+  2. Even after fixing (1), height still leaked from the photo's natural
+     ratio: grid items get an automatic content-based `min-height: auto`,
+     which for a box holding a replaced element comes from the photo's
+     intrinsic size, not from the box's own `aspect-ratio: 1`.
+  Fixed both: `grid-template-columns: minmax(0, 1fr)` on
+  `.shop-product-open`, `min-height: 0` on `.shop-product-visual`.
+  Verified with direct `getBoundingClientRect()` measurements across the
+  whole 62-item catalog (every card now a uniform 262x262 square,
+  confirmed with a forced reflow too, so it isn't a load-timing fluke) and
+  a full Playwright screenshot scroll-through, including the exact scene
+  from the original report (towel sets next to a wall-art tapestry) now
+  rendering aligned. — `src/routes/package-shop.css`
+
 ## Opening screen had no real content
 
 - **The "LIVE READOUT" beat on the first-visit intro screen (`/`, before
