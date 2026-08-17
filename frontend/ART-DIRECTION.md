@@ -297,7 +297,7 @@ Before handing back any screen:
 - [ ] Not using Inter as the display face
 - [ ] No emoji anywhere in the UI
 - [ ] Empty state has written copy, not "No data"
-- [ ] Real Lucknow addresses, ₹ prices, plausible names — never "Property 1"
+- [ ] Real Noida addresses, ₹ prices, plausible names — never "Property 1"
 - [ ] Ops tables have **no** tearing, rotation, or grain
 
 ## 13. What to build first

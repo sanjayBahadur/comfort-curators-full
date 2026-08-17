@@ -257,7 +257,7 @@ describe("useSuperhostUIActionDriver", () => {
     const events: SuperhostStreamEvent[] = [
       makeEvent(proposeId, "ToolCallProposed.v1", {
         tool_name: "get_weather",
-        arguments: { city: "Lucknow" },
+        arguments: { city: "Noida" },
       }),
       makeEvent(allowedId, "PolicyAllowed.v1", {
         tool_name: "get_weather",

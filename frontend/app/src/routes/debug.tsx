@@ -738,7 +738,7 @@ export default function Debug() {
       <header className="sheet-hero ruled-section registration-frame">
         <div className="meta-row">
           <span>CC / SYSTEM 00.5</span>
-          <span>LUCKNOW · INDIA</span>
+          <span>NOIDA · INDIA</span>
           <span>BUILD 2026.08</span>
         </div>
         <div className="hero-copy">

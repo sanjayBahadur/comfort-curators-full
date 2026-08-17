@@ -329,7 +329,13 @@ func (e *superhostToolExecutor) executeReadTool(ctx context.Context, toolName st
 	}
 
 	if propertyID == "" && run.PropertyID == "" {
-		pc, err := e.assembler.AssemblePortfolio(ctx, run.TenantID, run.ActorID)
+		// No actor role available on AgentRun at this layer (this is an
+		// on-demand read-tool re-assembly, not the conversational context
+		// the kickoff/general behavior is built from) -- role-tailoring
+		// guest vs. staff/owner phrasing lives in the prompt reacting to
+		// PropertyContext.ActorRole, not here; empty just means "unknown,"
+		// same as every call site before this field existed.
+		pc, err := e.assembler.AssemblePortfolio(ctx, run.TenantID, run.ActorID, "")
 		if err != nil {
 			return "", fmt.Errorf("portfolio context assembly: %w", err)
 		}
@@ -341,7 +347,7 @@ func (e *superhostToolExecutor) executeReadTool(ctx context.Context, toolName st
 		return e.buildPortfolioSummary(pc), nil
 	}
 
-	pc, err := e.assembler.Assemble(ctx, run.TenantID, propertyID, run.ActorID)
+	pc, err := e.assembler.Assemble(ctx, run.TenantID, propertyID, run.ActorID, "")
 	if err != nil {
 		return "", fmt.Errorf("context assembly: %w", err)
 	}

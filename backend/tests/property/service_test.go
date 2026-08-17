@@ -99,7 +99,7 @@ func samplePropertyParams(tenantID string) property.CreatePropertyParams {
 		OwnerAuthorityID: "owner-authority-1",
 		ServiceAddress: property.Address{
 			Line1:      "14 Marine Drive",
-			City:       "Lucknow",
+			City:       "Noida",
 			State:      "Uttar Pradesh",
 			PostalCode: "226001",
 			Country:    "IN",
@@ -140,7 +140,7 @@ func TestPropertyServiceLifecyclePersistsTransitions(t *testing.T) {
 	if p.Version != 1 {
 		t.Errorf("new property must start at version 1, got %d", p.Version)
 	}
-	if p.ServiceAddress.City != "Lucknow" {
+	if p.ServiceAddress.City != "Noida" {
 		t.Errorf("service address mismatch: %+v", p.ServiceAddress)
 	}
 

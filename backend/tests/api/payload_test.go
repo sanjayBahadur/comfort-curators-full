@@ -17,7 +17,7 @@ func propertyWithAccessMaterial() property.Property {
 		OwnerAuthorityID: "auth-owner-1",
 		ServiceAddress: property.Address{
 			Line1:      "14 Marine Drive",
-			City:       "Lucknow",
+			City:       "Noida",
 			State:      "Uttar Pradesh",
 			PostalCode: "226001",
 			Country:    "IN",

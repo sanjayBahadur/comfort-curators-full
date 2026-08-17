@@ -94,7 +94,7 @@ cannot be concealed. Omitting `label` gives
 { "idempotency_key": "demo-prop-1",
   "tenant_id": "1111...",
   "owner_authority_id": "2222-2222-4222-8222-222222222222",
-  "service_address": { "line1": "12 Gomti Nagar", "city": "Lucknow",
+  "service_address": { "line1": "12 Gomti Nagar", "city": "Noida",
                        "state": "UP", "postal_code": "226010", "country": "IN" },
   "timezone": "Asia/Kolkata",
   "maximum_occupancy": 4,
@@ -278,7 +278,7 @@ Live-verified Phase 2 dispatch details:
 ```jsonc
 { "legal_name": "Asha Verma", "date_of_birth": "1996-04-12T00:00:00Z",
   "contact_method": "+91...", "classification": "employee",
-  "specialist": false, "service_zone": "lucknow-central",
+  "specialist": false, "service_zone": "noida-central",
   "skills": ["cleaning","linen"], "verified_identity": true }
 ```
 ⚠️ **`date_of_birth` must be full RFC3339.** A bare `"1996-04-12"` returns

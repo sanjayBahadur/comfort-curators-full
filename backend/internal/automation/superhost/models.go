@@ -114,8 +114,19 @@ type UISurfaceInput struct {
 }
 
 type PropertyContext struct {
-	TenantID     string                 `json:"tenant_id"`
-	PropertyID   string                 `json:"property_id"`
+	TenantID   string `json:"tenant_id"`
+	PropertyID string `json:"property_id"`
+	// ActorRole is the requesting account's real role (owner/staff/guest),
+	// resolved server-side from the authenticated session -- never client-
+	// supplied. Nothing before this read the role at all: the same
+	// operational data (stock balances, ticket queues, compliance holds)
+	// was assembled and handed to Superhost regardless of who was asking,
+	// which is exactly right for owner/staff but meant a guest's own
+	// thread got the same staff-facing operational summary a guest has no
+	// reason to see or act on. The prompt is what actually changes guest
+	// behavior; this field is what lets it know it's talking to a guest
+	// in the first place.
+	ActorRole    string                 `json:"actor_role,omitempty"`
 	AssembledAt  time.Time              `json:"assembled_at"`
 	Property     ContextProperty        `json:"property"`
 	Reservations []ContextReservation   `json:"reservations"`
@@ -133,6 +144,7 @@ type PropertyContext struct {
 // every property on the tenant in the same conversation.
 type PortfolioContext struct {
 	TenantID     string               `json:"tenant_id"`
+	ActorRole    string               `json:"actor_role,omitempty"`
 	AssembledAt  time.Time            `json:"assembled_at"`
 	Properties   []PropertyContext    `json:"properties"`
 	AccountTasks []ContextAccountTask `json:"account_tasks,omitempty"`

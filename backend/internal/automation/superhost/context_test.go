@@ -289,7 +289,7 @@ func TestAssembleContextForValidTenantProperty(t *testing.T) {
 	assembler := superhost.NewContextAssembler(pool)
 
 	ctx := context.Background()
-	pc, err := assembler.Assemble(ctx, tenantA, propA, "")
+	pc, err := assembler.Assemble(ctx, tenantA, propA, "", "")
 	if err != nil {
 		t.Fatalf("assemble context: %v", err)
 	}
@@ -382,7 +382,7 @@ func TestCrossPropertyRequestIsDenied(t *testing.T) {
 	assembler := superhost.NewContextAssembler(pool)
 
 	ctx := context.Background()
-	_, err := assembler.Assemble(ctx, tenantA, propB, "")
+	_, err := assembler.Assemble(ctx, tenantA, propB, "", "")
 	if err == nil {
 		t.Fatal("expected cross-property denial")
 	}
@@ -390,7 +390,7 @@ func TestCrossPropertyRequestIsDenied(t *testing.T) {
 		t.Errorf("error must mention cross-property, got: %v", err)
 	}
 
-	_, err = assembler.Assemble(ctx, tenantB, propA, "")
+	_, err = assembler.Assemble(ctx, tenantB, propA, "", "")
 	if err == nil {
 		t.Fatal("expected cross-property denial for tenant B requesting property A")
 	}
@@ -402,7 +402,7 @@ func TestNonExistentPropertyReturnsDenied(t *testing.T) {
 	assembler := superhost.NewContextAssembler(pool)
 
 	ctx := context.Background()
-	_, err := assembler.Assemble(ctx, tenantA, "nonexistent-property-id", "")
+	_, err := assembler.Assemble(ctx, tenantA, "nonexistent-property-id", "", "")
 	if err == nil {
 		t.Fatal("expected denial for non-existent property")
 	}
@@ -417,7 +417,7 @@ func TestContextDoesNotContainSecrets(t *testing.T) {
 	assembler := superhost.NewContextAssembler(pool)
 
 	ctx := context.Background()
-	pc, err := assembler.Assemble(ctx, tenantA, propA, "")
+	pc, err := assembler.Assemble(ctx, tenantA, propA, "", "")
 	if err != nil {
 		t.Fatalf("assemble context: %v", err)
 	}
@@ -445,7 +445,7 @@ func TestContextDoesNotLeakOtherTenantData(t *testing.T) {
 	assembler := superhost.NewContextAssembler(pool)
 
 	ctx := context.Background()
-	pc, err := assembler.Assemble(ctx, tenantA, propA, "")
+	pc, err := assembler.Assemble(ctx, tenantA, propA, "", "")
 	if err != nil {
 		t.Fatalf("assemble context: %v", err)
 	}
@@ -484,7 +484,7 @@ func TestAssembleWithoutPropertyIDFails(t *testing.T) {
 	assembler := superhost.NewContextAssembler(pool)
 
 	ctx := context.Background()
-	_, err := assembler.Assemble(ctx, tenantA, "", "")
+	_, err := assembler.Assemble(ctx, tenantA, "", "", "")
 	if err == nil {
 		t.Fatal("expected error for empty property_id")
 	}
@@ -495,7 +495,7 @@ func TestAssembleWithoutTenantIDFails(t *testing.T) {
 	assembler := superhost.NewContextAssembler(pool)
 
 	ctx := context.Background()
-	_, err := assembler.Assemble(ctx, "", propA, "")
+	_, err := assembler.Assemble(ctx, "", propA, "", "")
 	if err == nil {
 		t.Fatal("expected error for empty tenant_id")
 	}
@@ -507,7 +507,7 @@ func TestContextHasFactReferences(t *testing.T) {
 	assembler := superhost.NewContextAssembler(pool)
 
 	ctx := context.Background()
-	pc, err := assembler.Assemble(ctx, tenantA, propA, "")
+	pc, err := assembler.Assemble(ctx, tenantA, propA, "", "")
 	if err != nil {
 		t.Fatalf("assemble context: %v", err)
 	}
@@ -563,7 +563,7 @@ func TestEmptyPropertyReturnsEmptySections(t *testing.T) {
 	assembler := superhost.NewContextAssembler(pool)
 
 	ctx := context.Background()
-	pc, err := assembler.Assemble(ctx, tenantA, propA, "")
+	pc, err := assembler.Assemble(ctx, tenantA, propA, "", "")
 	if err != nil {
 		t.Fatalf("assemble context: %v", err)
 	}
@@ -591,7 +591,7 @@ func TestInvalidTenantIDCrossTenantDenied(t *testing.T) {
 	assembler := superhost.NewContextAssembler(pool)
 
 	ctx := context.Background()
-	_, err := assembler.Assemble(ctx, "nonexistent-tenant", propA, "")
+	_, err := assembler.Assemble(ctx, "nonexistent-tenant", propA, "", "")
 	if err == nil {
 		t.Fatal("expected cross-property denial for non-existent tenant")
 	}
@@ -606,7 +606,7 @@ func TestModelArgumentsCannotSelectOtherTenant(t *testing.T) {
 	assembler := superhost.NewContextAssembler(pool)
 
 	ctx := context.Background()
-	_, err := assembler.Assemble(ctx, tenantA, propB, "")
+	_, err := assembler.Assemble(ctx, tenantA, propB, "", "")
 	if err == nil {
 		t.Fatal("model arguments selecting another tenant's property must be denied")
 	}
@@ -621,7 +621,7 @@ func TestAssembledContextIsValidJSON(t *testing.T) {
 	assembler := superhost.NewContextAssembler(pool)
 
 	ctx := context.Background()
-	pc, err := assembler.Assemble(ctx, tenantA, propA, "")
+	pc, err := assembler.Assemble(ctx, tenantA, propA, "", "")
 	if err != nil {
 		t.Fatalf("assemble context: %v", err)
 	}
@@ -657,7 +657,7 @@ func TestContextRespectsReservationTimeWindow(t *testing.T) {
 		now.Add(-365*24*time.Hour), now.Add(-360*24*time.Hour))
 
 	ctx := context.Background()
-	pc, err := assembler.Assemble(ctx, tenantA, propA, "")
+	pc, err := assembler.Assemble(ctx, tenantA, propA, "", "")
 	if err != nil {
 		t.Fatalf("assemble context: %v", err)
 	}

@@ -225,7 +225,7 @@ Remove DEF-10 and DEF-11. What remains:
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│ COMFORT CURATORS / ACCESS      LUCKNOW · IN    BUILD 08  │  mono 11px
+│ COMFORT CURATORS / ACCESS      NOIDA · IN    BUILD 08  │  mono 11px
 ├──────────────────────────────────────────────────────────┤
 │                                                          │
 │   Choose your                                            │  Instrument Serif
@@ -444,7 +444,7 @@ One page, per the human. Sections: current stay, house guide, request help
 
 **Store, under D3.** Providers are named in plain mono text — `INSTAMART`,
 `ZEPTO`, `BLINKIT` — as selectable targets. **No logos, no scraped copy, no
-brand colours.** Catalog is ours: real Lucknow items, ₹ prices in minor units
+brand colours.** Catalog is ours: real Noida items, ₹ prices in minor units
 through the existing `<Money>`.
 
 ```
@@ -635,6 +635,6 @@ the ones that get violated:
 - Every list needs three designed states: skeleton, written empty copy, populated.
 - No emoji. No rounded corners. No shadows. No gradients.
 - `--red` appears once or twice per screen, never more.
-- Real Lucknow addresses, real ₹ prices, plausible names. Never "Property 1".
+- Real Noida addresses, real ₹ prices, plausible names. Never "Property 1".
 - Every phase writes `logs/phase-N-<slug>.md` using the `POLICY.md` template,
   and **stops** for human verification.

@@ -28,7 +28,9 @@ func NewContextAssembler(pool *pgxpool.Pool) *ContextAssembler {
 // updated to thread the real actor through yet) -- when empty, the
 // account task ledger is simply omitted rather than erroring, since a
 // missing actor identity shouldn't block context assembly entirely.
-func (a *ContextAssembler) Assemble(ctx context.Context, tenantID, propertyID, actorID string) (*PropertyContext, error) {
+// actorRole is likewise optional and, when empty, simply omitted from the
+// context rather than guessed.
+func (a *ContextAssembler) Assemble(ctx context.Context, tenantID, propertyID, actorID, actorRole string) (*PropertyContext, error) {
 	if tenantID == "" {
 		return nil, ErrTenantScopeRequired
 	}
@@ -51,6 +53,7 @@ func (a *ContextAssembler) Assemble(ctx context.Context, tenantID, propertyID, a
 	pc := &PropertyContext{
 		TenantID:    tenantID,
 		PropertyID:  propertyID,
+		ActorRole:   actorRole,
 		AssembledAt: time.Now(),
 	}
 
@@ -124,7 +127,7 @@ func (a *ContextAssembler) Assemble(ctx context.Context, tenantID, propertyID, a
 // per-property assembly as Assemble (same real reservations/tickets/
 // stock/compliance data); this only adds the loop and a shared account-
 // task ledger fetched once, not duplicated per property.
-func (a *ContextAssembler) AssemblePortfolio(ctx context.Context, tenantID, actorID string) (*PortfolioContext, error) {
+func (a *ContextAssembler) AssemblePortfolio(ctx context.Context, tenantID, actorID, actorRole string) (*PortfolioContext, error) {
 	if tenantID == "" {
 		return nil, ErrTenantScopeRequired
 	}
@@ -147,9 +150,9 @@ func (a *ContextAssembler) AssemblePortfolio(ctx context.Context, tenantID, acto
 		return nil, fmt.Errorf("superhost: list portfolio properties: %w", err)
 	}
 
-	pc := &PortfolioContext{TenantID: tenantID, AssembledAt: time.Now()}
+	pc := &PortfolioContext{TenantID: tenantID, ActorRole: actorRole, AssembledAt: time.Now()}
 	for _, propertyID := range propertyIDs {
-		propContext, err := a.Assemble(ctx, tenantID, propertyID, "")
+		propContext, err := a.Assemble(ctx, tenantID, propertyID, "", actorRole)
 		if err != nil {
 			return nil, fmt.Errorf("superhost: assemble portfolio property %s: %w", propertyID, err)
 		}

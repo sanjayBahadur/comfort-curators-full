@@ -353,7 +353,7 @@ export default function Dashboard() {
 
         <section className="owner-intro" aria-labelledby="dashboard-title">
           <div className="owner-intro-heading">
-            <p>PORTFOLIO / LUCKNOW</p>
+            <p>PORTFOLIO / NOIDA</p>
             <h1 id="dashboard-title">Is everything fine?</h1>
             <span>{dashboard ? (decisionCount === 0 ? "Everything is running quietly." : `${decisionCount} ${decisionCount === 1 ? "decision needs" : "decisions need"} your attention.`) : "Quietly checking your portfolio."}</span>
           </div>

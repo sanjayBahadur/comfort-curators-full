@@ -984,7 +984,7 @@ export default function PackageShop() {
           </div>
           <div className="shop-result-count">
             <span>{allItems.length} ITEMS{hasFilters ? ` · ${filteredItems.length} FILTERED` : ""}</span>
-            <span>{property?.data.service_address.city ?? "LUCKNOW"} · INR</span>
+            <span>{property?.data.service_address.city ?? "NOIDA"} · INR</span>
           </div>
           {catalogQuery.isLoading ? (
             <div className="shop-grid shop-skeleton-grid" aria-label="Loading catalog">

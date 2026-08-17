@@ -147,6 +147,67 @@ the same path isn't retried blind.
   to the original `var(--ink)`, confirmed byte-identical to before. The
   black cell is back too; not re-attempted this session.
 
+## Guest tab rework + Lucknow → Noida (second pass, same day)
+
+- **Guest thread showed staff-facing operational data** (stock balances,
+  ticket queues, compliance holds) — technically correct data, completely
+  wrong audience. Root cause: `ContextAssembler` never knew the requesting
+  account's role at all; the exact same context got assembled and handed to
+  Superhost regardless of who was asking. Added `ActorRole` to
+  `PropertyContext`/`PortfolioContext`, threaded the real, server-resolved
+  role (never client-supplied) through every call site
+  (`handler.go`/`thread_store.go`), and gave the prompt a dedicated
+  "Talking with a guest" section: don't lead with operational detail a guest
+  has no reason to see, and a new, separate guest kickoff message (warm,
+  short, stay-focused) instead of the owner/staff operational one. —
+  `internal/automation/superhost/{models,context,handler,thread_store}.go`,
+  `prompt/v1.md`
+
+- **"Do its best guess and make the help ticket, but only when actually
+  asked, and just instruct for misc questions."** This was less a build
+  than a policy: added an explicit rule that a real, described problem gets
+  a real proposal/ticket the same way staff gets one, but a passing
+  question ("what time is checkout") gets answered directly, never ticketed
+  -- and to ask rather than guess when it's unclear which one something is.
+  — `prompt/v1.md`
+
+- **Real bug found verifying the above, live**: asking Superhost (as a
+  guest) to report a genuine problem drove the Stay page's real help form
+  correctly in narration but silently submitted with an *empty* ticket
+  type — confirmed via a real `422 VALIDATION_ERROR "type is required"`
+  from the backend that nothing ever surfaced back to the model (a
+  `ui_click`'s own `PolicyAllowed.v1` only confirms the click was sent, not
+  that the resulting async form submission was accepted). Root cause: the
+  `<select>`'s registered surface label never said what its valid literal
+  values actually were, so the model set a human-readable description
+  instead of one of the three real option values, which a controlled
+  `<select>` accepts without any error while quietly never actually
+  changing state. Fixed by spelling out the exact literal values in the
+  surface's own label (same fix pattern as the earlier price/category
+  labels), plus a general prompt rule against ever substituting a
+  description for a dropdown's real value. Verified live end-to-end after
+  the fix: a real `restock` ticket, correctly typed, actually created in
+  the database from a plain-English guest complaint. — `src/routes/stay.tsx`,
+  `prompt/v1.md`
+
+- **"Lucknow" removed from everywhere, replaced with "Noida"** — city
+  field and postal codes (real Noida-range PINs, not the Lucknow 226xxx
+  range) across all 5 seeded properties, catalog vendor/brand flavor names
+  ("Lucknow Essentials/Textiles/Decor/Woodworks" → "Noida..."), the
+  contact desk name, worker service-zone slugs, every UI string
+  ("GUEST PORTAL / LUCKNOW", "PORTFOLIO / LUCKNOW", the "LUCKNOW · INR"
+  fallback), and test fixtures/spec docs. Deliberately did **not** rename
+  the specific locality names themselves (Hazratganj, Gomti Nagar, Indira
+  Nagar, Aliganj, Mahanagar) or anything derived from them (property
+  labels, idempotency keys, ICS filenames, env var names) — those are
+  real Lucknow neighborhoods and arguably ought to change too for full
+  geographic coherence, but doing so cascades into file names and env var
+  names wired through several config files for no benefit the user asked
+  for; flagging this scope choice explicitly rather than silently deciding
+  it. Full reset (`down -v` + rebuild + reseed) run afterward since
+  `seed.ts` changed. — `scripts/seed.ts` and about a dozen frontend/backend
+  files, full list in the commit diff.
+
 ## Operational notes
 
 - Full environment reset performed once mid-session (`docker compose down

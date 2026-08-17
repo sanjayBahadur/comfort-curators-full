@@ -45,7 +45,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 }
 
 func (h *Handler) handleCreateRun(w http.ResponseWriter, r *http.Request) {
-	tenantID, actorID, _, err := subjectFromRequest(r)
+	tenantID, actorID, roles, err := subjectFromRequest(r)
 	if err != nil {
 		writeError(w, r, http.StatusUnauthorized, "UNAUTHORIZED", "authentication required")
 		return
@@ -95,7 +95,7 @@ func (h *Handler) handleCreateRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	context, err := h.assembler.Assemble(r.Context(), tenantID, propertyID, actorID)
+	context, err := h.assembler.Assemble(r.Context(), tenantID, propertyID, actorID, primaryRole(roles))
 	if err != nil {
 		if errors.Is(err, ErrCrossPropertyDenied) {
 			writeError(w, r, http.StatusForbidden, "FORBIDDEN", "cross-property request denied")
@@ -129,7 +129,7 @@ func (h *Handler) handleCreateRun(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleCreateThread(w http.ResponseWriter, r *http.Request) {
-	tenantID, actorID, _, err := subjectFromRequest(r)
+	tenantID, actorID, roles, err := subjectFromRequest(r)
 	if err != nil {
 		writeError(w, r, http.StatusUnauthorized, "UNAUTHORIZED", "authentication required")
 		return
@@ -183,7 +183,7 @@ func (h *Handler) handleCreateThread(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	thread, duplicate, err := h.threadStore.CreateThread(r.Context(), req.TenantID, req.PropertyID, actorID, req.Purpose, req.IdempotencyKey)
+	thread, duplicate, err := h.threadStore.CreateThread(r.Context(), req.TenantID, req.PropertyID, actorID, primaryRole(roles), req.Purpose, req.IdempotencyKey)
 	if err != nil {
 		if errors.Is(err, ErrCrossPropertyDenied) {
 			writeError(w, r, http.StatusUnprocessableEntity, "UNPROCESSABLE", "invalid property or tenant reference")
@@ -207,7 +207,7 @@ func (h *Handler) handleCreateThread(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleSendMessage(w http.ResponseWriter, r *http.Request) {
-	tenantID, actorID, _, err := subjectFromRequest(r)
+	tenantID, actorID, roles, err := subjectFromRequest(r)
 	if err != nil {
 		writeError(w, r, http.StatusUnauthorized, "UNAUTHORIZED", "authentication required")
 		return
@@ -279,14 +279,14 @@ func (h *Handler) handleSendMessage(w http.ResponseWriter, r *http.Request) {
 	// property on the tenant instead of one.
 	var pcRaw []byte
 	if thread.PropertyID == "" {
-		pc, err := h.assembler.AssemblePortfolio(r.Context(), thread.TenantID, actorID)
+		pc, err := h.assembler.AssemblePortfolio(r.Context(), thread.TenantID, actorID, primaryRole(roles))
 		if err != nil {
 			writeError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "context assembly failed: "+err.Error())
 			return
 		}
 		pcRaw, _ = json.Marshal(pc)
 	} else {
-		pc, err := h.assembler.Assemble(r.Context(), thread.TenantID, thread.PropertyID, actorID)
+		pc, err := h.assembler.Assemble(r.Context(), thread.TenantID, thread.PropertyID, actorID, primaryRole(roles))
 		if err != nil {
 			writeError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "context assembly failed: "+err.Error())
 			return
@@ -464,6 +464,23 @@ func subjectFromRequest(r *http.Request) (tenantID, actorID string, roles []stri
 		return "", "", nil, errors.New("unauthenticated")
 	}
 	return subject.TenantID, subject.ActorID, subject.Roles, nil
+}
+
+// primaryRole picks the one role that matters for shaping Superhost's own
+// behavior toward this account (see PropertyContext.ActorRole). This demo's
+// accounts carry exactly one real role each, so roles[0] is it; if that
+// ever stops holding, owner/staff take priority over guest since a guest
+// role is the one the prompt treats most restrictively.
+func primaryRole(roles []string) string {
+	for _, r := range roles {
+		if r == "owner" || r == "staff" {
+			return r
+		}
+	}
+	if len(roles) > 0 {
+		return roles[0]
+	}
+	return ""
 }
 
 func renderUISurfaces(surfaces []UISurfaceInput) string {

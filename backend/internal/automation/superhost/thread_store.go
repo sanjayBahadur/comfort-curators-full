@@ -48,7 +48,7 @@ func NewThreadStore(pool *pgxpool.Pool, runStore *automation.AgentRunStore, asse
 // actor component, so scoping by actor here is what keeps two different
 // accounts on the same property (two guests, or a guest and staff) from
 // resolving to and sharing the same thread.
-func (s *ThreadStore) CreateThread(ctx context.Context, tenantID, propertyID, actorID, purpose, idempotencyKey string) (*Thread, bool, error) {
+func (s *ThreadStore) CreateThread(ctx context.Context, tenantID, propertyID, actorID, actorRole, purpose, idempotencyKey string) (*Thread, bool, error) {
 	if existing, err := s.GetThreadByIdempotencyKey(ctx, tenantID, actorID, idempotencyKey); err == nil && existing != nil {
 		return existing, true, nil
 	}
@@ -58,7 +58,7 @@ func (s *ThreadStore) CreateThread(ctx context.Context, tenantID, propertyID, ac
 	// property_id, so branch here rather than relaxing that requirement.
 	var contextJSON []byte
 	if propertyID == "" {
-		pc, err := s.assembler.AssemblePortfolio(ctx, tenantID, actorID)
+		pc, err := s.assembler.AssemblePortfolio(ctx, tenantID, actorID, actorRole)
 		if err != nil {
 			return nil, false, err
 		}
@@ -67,7 +67,7 @@ func (s *ThreadStore) CreateThread(ctx context.Context, tenantID, propertyID, ac
 			return nil, false, fmt.Errorf("superhost: marshal context: %w", err)
 		}
 	} else {
-		pc, err := s.assembler.Assemble(ctx, tenantID, propertyID, actorID)
+		pc, err := s.assembler.Assemble(ctx, tenantID, propertyID, actorID, actorRole)
 		if err != nil {
 			return nil, false, err
 		}
@@ -87,16 +87,36 @@ func (s *ThreadStore) CreateThread(ctx context.Context, tenantID, propertyID, ac
 	// Superhost looking at real account data and proposing something
 	// concrete, instead of sitting there waiting for the human to think
 	// of a prompt.
-	kickoffInput := map[string]any{
-		"type": "system_kickoff",
-		"content": "A new session just started. Look at the real account context you were given " +
+	// Guest kickoff is deliberately a different message, not just the same
+	// prompt applied to a role that happens to see less data. The owner/
+	// staff kickoff below surfaces open tickets, stock, and compliance
+	// holds -- exactly right for someone operating the property, and
+	// exactly the wrong first thing to say to a guest, who has no reason
+	// to know or care what the stock balance is. Confirmed live: a guest's
+	// own thread was opening with that same operational summary.
+	var kickoffContent string
+	if actorRole == "guest" {
+		kickoffContent = "A guest just opened this during their stay. Look at the real reservation and " +
+			"property context you were given -- their actual stay window, real house access info, " +
+			"anything genuinely useful to someone staying there right now. In one or two short, plain " +
+			"sentences, either mention the one concrete thing worth knowing (their stay dates, a real " +
+			"access note) or simply invite them to ask for what they need. Never mention operational " +
+			"details meant for the property's own staff -- stock counts, ticket queues, compliance " +
+			"holds, account_tasks. Close by inviting them to ask for local recommendations, house " +
+			"info, or to report something that needs attention."
+	} else {
+		kickoffContent = "A new session just started. Look at the real account context you were given " +
 			"(open tickets, low stock, pending approvals, upcoming reservations, prior account_tasks -- " +
 			"whatever is actually there) and name the single most useful thing you notice, in one short " +
 			"sentence -- not a numbered list, not a paragraph per item, no explanation of your reasoning " +
 			"yet. If a second thing is genuinely just as pressing, a second short sentence is fine; stop " +
 			"there. If nothing genuinely needs attention, say so plainly in one sentence instead of " +
 			"manufacturing busywork. Close with a short, plain invitation to ask for more detail or " +
-			"anything else -- not a menu of what you could do.",
+			"anything else -- not a menu of what you could do."
+	}
+	kickoffInput := map[string]any{
+		"type":    "system_kickoff",
+		"content": kickoffContent,
 	}
 	kickoffRaw, err := json.Marshal(kickoffInput)
 	if err != nil {
