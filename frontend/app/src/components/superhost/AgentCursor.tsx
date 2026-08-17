@@ -93,7 +93,7 @@ export default function AgentCursor() {
           setTarget((prev) => {
             const next: Point = { x: cx, y: cy };
             if (prev && !reduced) {
-              const duration = reduced ? 100 : 400;
+              const duration = reduced ? 100 : 550;
               const newParticles: TrailParticle[] = Array.from(
                 { length: PARTICLE_COUNT },
                 () => ({
@@ -131,13 +131,17 @@ export default function AgentCursor() {
 
   if (session.state !== "granted") return null;
 
-  const duration = reduced ? 100 : 400;
+  const duration = reduced ? 100 : 550;
+  // The arrow's own hotspot -- the point a real cursor "clicks from" -- is
+  // its tip, up in the shape's top-left corner, not the icon's geometric
+  // center. Centering transform here (like the old symmetric crosshair
+  // used) would visibly offset the tip from whatever it's pointing at.
   const idlePos: CSSProperties = {
-    transform: "translate(50vw, 50vh) translate(-50%, -50%)",
+    transform: "translate(50vw, 50vh) translate(-4px, -4px)",
   };
   const targetPos: CSSProperties = target
     ? {
-        transform: `translate(${target.x}px, ${target.y}px) translate(-50%, -50%)`,
+        transform: `translate(${target.x}px, ${target.y}px) translate(-4px, -4px)`,
       }
     : {};
 
@@ -147,13 +151,27 @@ export default function AgentCursor() {
 
   return (
     <>
-      <div
+      <svg
         className={
           `agent-cursor` +
           (visible ? " agent-cursor--visible" : " agent-cursor--idle")
         }
         style={target ? { ...baseStyle, ...targetPos } : { ...baseStyle, ...idlePos }}
-      />
+        viewBox="0 0 24 24"
+        width="27"
+        height="27"
+        aria-hidden="true"
+      >
+        {/* An actual arrow pointer -- the classic Windows/OS mouse-cursor
+            silhouette -- not an abstract reticle. Black body so it reads
+            as "a mouse", a thin green outline and trailing stroke so it
+            still reads as Superhost's own cursor, not the person's real
+            one. */}
+        <path
+          className="agent-cursor-arrow"
+          d="M3 3 L3 18.5 L7.2 15 L9.9 21.3 L13 20 L10.3 13.7 L16.5 13.7 Z"
+        />
+      </svg>
       {particles.map((p, i, arr) => {
         const staggerIndex = arr.length - 1 - i;
         return (

@@ -5,7 +5,7 @@
   z-index: 10000;
   outline: 3px solid var(--control-ring-glow);
   outline-offset: 3px;
-  animation: control-ring-appear 400ms var(--ease-expo-out) forwards;
+  animation: control-ring-appear 550ms var(--ease-expo-out) forwards;
   transform-origin: center;
 }
 
@@ -16,6 +16,28 @@
   z-index: 10000;
   outline: 3px solid var(--control-ring-glow);
   outline-offset: 3px;
+}
+
+.control-click-pulse {
+  --control-ring-glow: #00FF66;
+  position: fixed;
+  z-index: 10001;
+  pointer-events: none;
+  border-radius: 50%;
+  background: var(--control-ring-glow);
+  animation: control-click-pulse-burst 220ms var(--ease-expo-out) forwards;
+  transform-origin: center;
+}
+
+@keyframes control-click-pulse-burst {
+  0% {
+    opacity: 0.9;
+    transform: scale(0.35);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.6);
+  }
 }
 
 .agent-drag-ghost {

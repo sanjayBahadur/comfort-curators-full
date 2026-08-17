@@ -17,18 +17,35 @@ function value(data: EventData, key: string): string {
   return typeof data[key] === "string" ? data[key] as string : "";
 }
 
+// useSuperhostUIActionDriver already renders one clean "did: click: <real
+// label>" line per successful ui_* action -- the one a general user should
+// actually see. Without this, the same action also produced this file's
+// own generic line: raw tool-call JSON on propose, then a technical
+// backend sentence on allow ("the browser's gated control-session driver
+// executes it, this backend does not receive confirmation this turn").
+// Confirmed live: every click showed up twice, once readable and once as
+// engineering internals. This suppresses only the redundant generic
+// version for ui_* tools -- everything else (reads, proposals, denials)
+// still gets its one real line, since nothing else renders those.
+const UI_TOOLS = new Set(["ui_focus", "ui_set_value", "ui_click", "ui_scroll_to", "ui_open_panel"]);
+
 export function eventToTerminalLine(event: SuperhostStreamEvent): MappedSuperhostEvent {
   const data = dataOf(event);
   const id = event.event_id;
   switch (event.event_name) {
-    case "ToolCallProposed.v1":
-      return { type: "line", line: { id, kind: "agent", text: `proposed ${value(data, "tool_name")}: ${JSON.stringify(data.arguments)}` } };
+    case "ToolCallProposed.v1": {
+      const toolName = value(data, "tool_name");
+      if (UI_TOOLS.has(toolName)) return { type: "unknown", event };
+      return { type: "line", line: { id, kind: "agent", text: `proposed ${toolName}: ${JSON.stringify(data.arguments)}` } };
+    }
     case "PolicyDenied.v1":
       return { type: "line", line: { id, kind: "denial", text: value(data, "reason") } };
     case "ApprovalRequired.v1":
       return { type: "approval_required", event, toolName: value(data, "tool_name"), requestId: value(data, "approval_request_id"), summary: value(data, "summary") };
-    case "PolicyAllowed.v1":
+    case "PolicyAllowed.v1": {
+      if (UI_TOOLS.has(value(data, "tool_name"))) return { type: "unknown", event };
       return { type: "line", line: { id, kind: "agent", text: value(data, "result_summary") } };
+    }
     case "AgentRunFallback.v1":
       return { type: "line", line: { id, kind: "system", text: `OFFLINE FALLBACK · ${value(data, "reason")}` } };
     case "AgentRunToken.v1":

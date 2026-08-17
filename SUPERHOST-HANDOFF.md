@@ -56,8 +56,9 @@ npm run dev
 If starting from an empty database, run `npm run seed` from
 `frontend/app`. Open `http://localhost:3000/login`, sign in as Owner, select
 Hazratganj Studio, and open its package page. Wait for product cards before
-handing over control. Use `BUILD TO CHECKOUT`, press `SEND`, then minimize the
-drawer to observe the work.
+handing over control. Use `BUILD TO CHECKOUT`, press `SEND`, and watch the
+work directly -- the drawer now auto-minimizes the instant control is
+granted, so it never sits on top of the cart-building animation.
 
 Fresh package actions should target IDs beginning with
 `shop-catalog-add-`. A restored thread may show

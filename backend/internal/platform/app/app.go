@@ -907,16 +907,20 @@ func superhostTools() []automation.ChatToolDef {
 		if err != nil {
 			continue
 		}
+		params := def.Parameters
+		if len(params) == 0 {
+			params = json.RawMessage(`{"type":"object"}`)
+		}
 		tools = append(tools, automation.ChatToolDef{
 			Type: "function",
 			Function: automation.ChatToolFunction{
 				Name:        def.Name,
 				Description: def.Description,
-				Parameters:  json.RawMessage(`{"type":"object"}`),
+				Parameters:  params,
 			},
 		})
 	}
-	log.Printf("http provider: built %d tools for request; per-tool argument schemas would make tool selection more reliable and do not exist yet", len(tools))
+	log.Printf("http provider: built %d tools for request, each with its own real argument schema", len(tools))
 	return tools
 }
 

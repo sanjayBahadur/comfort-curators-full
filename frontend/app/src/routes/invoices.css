@@ -1,3 +1,30 @@
+.invoice-page .invoice-report-actions {
+  display: flex;
+  flex-wrap: wrap;
+  padding: 8px 56px 28px;
+  gap: 12px;
+}
+
+.invoice-page .invoice-report-actions button {
+  min-height: 48px;
+  padding: 0 20px;
+  border: var(--rule);
+  background: var(--ink);
+  color: var(--paper);
+  font-family: "JetBrains Mono Variable", monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.invoice-page .invoice-report-actions button:hover:not(:disabled) { background: var(--red); border-color: var(--red); }
+
+.invoice-page .invoice-report-summary article { min-height: 220px; padding: 34px; }
+
+@media (max-width: 760px) {
+  .invoice-page .invoice-report-actions { padding: 8px 20px 24px; }
+}
+
 .invoice-page .invoice-statement-topmatter {
   display: grid;
   padding: 34px 34px 28px;

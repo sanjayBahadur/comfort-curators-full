@@ -1,12 +1,12 @@
-.owner-task-terminal { display: grid; border-bottom: 1px solid #00994d; background: var(--ink); color: #00ff66; font-family: "JetBrains Mono Variable", monospace; }
-.owner-task-terminal > header { display: flex; min-height: 48px; padding: 0 24px; border-bottom: 1px solid #00994d; align-items: center; justify-content: space-between; gap: 20px; }
+.owner-task-terminal { display: grid; margin-top: var(--owner-content-gutter); border-top: 1px solid #00994d; border-bottom: 1px solid #00994d; background: var(--ink); color: #00ff66; font-family: "JetBrains Mono Variable", monospace; }
+.owner-task-terminal > header { display: flex; min-height: 42px; padding: 0 24px; border-bottom: 1px solid #00994d; align-items: center; justify-content: space-between; gap: 20px; }
 .owner-task-terminal > header div { display: flex; align-items: baseline; gap: 12px; }
 .owner-task-terminal > header span, .owner-task-terminal > header strong, .owner-task-terminal > header small, .owner-task-terminal-columns header { font-size: 10px; letter-spacing: .06em; text-transform: uppercase; }
 .owner-task-terminal > header span, .owner-task-terminal > header small { color: #00994d; }
 .owner-task-terminal > header strong { font-size: 12px; }
-.owner-task-terminal-summary { display: grid; min-height: 62px; padding: 12px 24px; border-bottom: 1px solid #00994d; align-content: center; gap: 7px; font-size: 12px; line-height: 1.5; }
+.owner-task-terminal-summary { display: flex; min-height: 44px; padding: 8px 24px; border-bottom: 1px solid #00994d; align-items: center; justify-content: space-between; gap: 18px; font-size: 11px; line-height: 1.4; }
 .owner-task-terminal-summary span:first-child { color: #00994d; }
-.owner-task-terminal-checklist { display: grid; max-height: 360px; margin: 0; padding: 22px 24px 26px; overflow-y: auto; gap: 18px; list-style: none; scrollbar-color: #00994d var(--ink); }
+.owner-task-terminal-checklist { display: grid; max-height: 240px; margin: 0; padding: 17px 24px 20px; overflow-y: auto; gap: 14px; list-style: none; scrollbar-color: #00994d var(--ink); }
 .owner-task-terminal-checklist li { display: grid; align-items: start; gap: 12px; grid-template-columns: 34px minmax(0, 1fr); }
 .owner-task-terminal-checklist li > b { color: #00994d; font-size: 12px; font-weight: 500; line-height: 1.5; }
 .owner-task-terminal-checklist li[data-kind="approval"] > b { color: #00ff66; }
@@ -32,7 +32,7 @@
 
 @media (max-width: 620px) {
   .owner-task-terminal > header { padding: 11px 16px; align-items: flex-start; flex-direction: column; gap: 5px; }
-  .owner-task-terminal-summary { padding: 10px 16px; }
+  .owner-task-terminal-summary { padding: 10px 16px; align-items: flex-start; flex-direction: column; }
   .owner-task-terminal-checklist { padding: 20px 16px 24px; }
   .owner-task-terminal-result, .owner-task-terminal-error { padding: 10px 16px 14px; }
 }

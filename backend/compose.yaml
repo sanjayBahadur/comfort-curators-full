@@ -70,6 +70,19 @@ services:
       - CC_S3_PORT=9000
       - CC_MODEL_HOST=${CC_MODEL_HOST:-model-stub}
       - CC_MODEL_PORT=8080
+      # The api process stamps every new run with (provider, model) at
+      # creation time, and the worker executes using that stored value
+      # (see runner.go), not a freshly recomputed default -- so this
+      # normally never matters. It's still set here to match the api
+      # service: any worker-side code path that resolves these defaults
+      # directly (the same defaultSuperhostProvider()/Model() functions
+      # provider_config.go exports) must see the same real pair the api
+      # process sees, not silently fall back to the stub pair while
+      # CC_MODEL_URL below points at a real, billed endpoint -- that
+      # combination is what actually failed live (a real provider call
+      # with the stub's placeholder model name, rejected by the real API).
+      - CC_SUPERHOST_PROVIDER=${CC_SUPERHOST_PROVIDER:-model-stub}
+      - CC_SUPERHOST_MODEL=${CC_SUPERHOST_MODEL:-stub-v1}
       # Empty by default: app.go only builds the CC_MODEL_HOST/PORT stub URL
       # when this is unset, so a plain checkout still talks to the local
       # model-stub container. Set both in .env (never committed -- see

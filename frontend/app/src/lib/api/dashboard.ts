@@ -77,7 +77,7 @@ export type OwnerDashboardData = {
 
 const items = <T,>(collection: Collection<T>) => collection.items ?? [];
 
-function currentMonth() {
+export function currentMonth() {
   const now = new Date();
   const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
   const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));

@@ -57,6 +57,20 @@ type ToolDefinition struct {
 	RequiresApproval bool           `json:"requires_approval"`
 	ApprovalKind     string         `json:"approval_kind,omitempty"`
 	Idempotent       bool           `json:"idempotent"`
+	// Parameters is the real JSON Schema sent to the model as this tool's
+	// function-calling signature. Every tool previously shared one bare
+	// `{"type":"object"}` schema with no declared properties or required
+	// fields (see app.go's superhostTools, which used to hardcode that
+	// for every entry) -- nothing structurally stopped the model from
+	// calling propose_inspection_ticket with `{}` and no property_id.
+	// Confirmed live: a portfolio-scoped proposal was approved by a real
+	// human reviewer and still failed to create a ticket, twice, because
+	// the tool call itself never carried a property_id for
+	// ExecuteApproved to use. A real, tool-specific schema with
+	// `required` lets the model's own provider enforce this before the
+	// call is even made, instead of catching it after an approval was
+	// already spent on a call that could never succeed.
+	Parameters json.RawMessage `json:"-"`
 }
 
 func (d ToolDefinition) IsMutation() bool {
@@ -68,6 +82,128 @@ func (d ToolDefinition) IsMutation() bool {
 	}
 }
 
+// Real function-calling schemas, one per shape actually consumed server
+// side (see tool_executor.go). property_id is always the real id from the
+// assembled context (context.property_id for a property-scoped thread,
+// context.properties[].property_id per entry for a portfolio-scoped one)
+// -- never a name or address, and never omitted, so ExecuteApproved
+// always has one to create the real record against.
+var (
+	readToolSchema = json.RawMessage(`{
+		"type": "object",
+		"properties": {
+			"property_id": {
+				"type": "string",
+				"description": "The real property_id to scope this read to. Optional only in a portfolio-scoped thread with no argument at all, which returns a one-line-per-property overview instead of one property's detail."
+			}
+		}
+	}`)
+
+	proposeTicketSchema = json.RawMessage(`{
+		"type": "object",
+		"properties": {
+			"property_id": {
+				"type": "string",
+				"description": "The real property_id this ticket is for, taken from the assembled context. Required, always -- never omit it, even in a portfolio-scoped thread."
+			},
+			"reason": {
+				"type": "string",
+				"description": "A short, specific, real reason for this ticket -- what's happening and why it needs this work."
+			}
+		},
+		"required": ["property_id", "reason"]
+	}`)
+
+	requestApprovalSchema = json.RawMessage(`{
+		"type": "object",
+		"properties": {
+			"property_id": {
+				"type": "string",
+				"description": "The real property_id this request concerns, if it's about one specific property."
+			},
+			"summary": {
+				"type": "string",
+				"description": "A short, specific summary of what needs approval and why."
+			}
+		},
+		"required": ["summary"]
+	}`)
+
+	sendNotificationSchema = json.RawMessage(`{
+		"type": "object",
+		"properties": {
+			"property_id": { "type": "string", "description": "The real property_id this notification concerns, if any." },
+			"recipient": { "type": "string", "description": "Who the notification is for, described plainly (their role or name), not an internal id." },
+			"message": { "type": "string", "description": "The real, specific content of the notification." }
+		},
+		"required": ["recipient", "message"]
+	}`)
+
+	assembleDocumentPacketSchema = json.RawMessage(`{
+		"type": "object",
+		"properties": {
+			"property_id": { "type": "string", "description": "The real property_id these records belong to." },
+			"description": { "type": "string", "description": "Which real records this packet assembles and why." }
+		},
+		"required": ["property_id", "description"]
+	}`)
+
+	escalateExceptionSchema = json.RawMessage(`{
+		"type": "object",
+		"properties": {
+			"property_id": { "type": "string", "description": "The real property_id this exception concerns, if any." },
+			"reason": { "type": "string", "description": "A short, specific reason this needs manual review." }
+		},
+		"required": ["reason"]
+	}`)
+
+	uiSurfaceOnlySchema = json.RawMessage(`{
+		"type": "object",
+		"properties": {
+			"surface_id": {
+				"type": "string",
+				"description": "The exact id from \"Available UI surfaces\" in this turn's message. Never invent one."
+			}
+		},
+		"required": ["surface_id"]
+	}`)
+
+	uiSetValueSchema = json.RawMessage(`{
+		"type": "object",
+		"properties": {
+			"surface_id": {
+				"type": "string",
+				"description": "The exact id from \"Available UI surfaces\" in this turn's message. Never invent one."
+			},
+			"value": {
+				"type": "string",
+				"description": "The real, complete value to set -- typed into the field one character at a time in the browser."
+			}
+		},
+		"required": ["surface_id", "value"]
+	}`)
+
+	noArgsSchema = json.RawMessage(`{"type": "object", "properties": {}}`)
+
+	logTaskSchema = json.RawMessage(`{
+		"type": "object",
+		"properties": {
+			"description": { "type": "string", "description": "What still needs doing, in your own words." }
+		},
+		"required": ["description"]
+	}`)
+
+	resolveTaskSchema = json.RawMessage(`{
+		"type": "object",
+		"properties": {
+			"task_id": { "type": "string", "description": "The id of one of this account's own logged tasks, from list_my_tasks." },
+			"status": { "type": "string", "enum": ["done", "blocked"], "description": "Defaults to done if omitted." },
+			"note": { "type": "string", "description": "A brief note on how it landed." }
+		},
+		"required": ["task_id"]
+	}`)
+)
+
 var superhostToolRegistry = func() map[string]ToolDefinition {
 	reg := []ToolDefinition{
 		{
@@ -78,6 +214,7 @@ var superhostToolRegistry = func() map[string]ToolDefinition {
 			Description:      "Read-only property operating summary from assembled context",
 			RequiresApproval: false,
 			Idempotent:       true,
+			Parameters:       readToolSchema,
 		},
 		{
 			Name:             "get_reservation_change",
@@ -87,6 +224,7 @@ var superhostToolRegistry = func() map[string]ToolDefinition {
 			Description:      "Read reservation changes from assembled context",
 			RequiresApproval: false,
 			Idempotent:       true,
+			Parameters:       readToolSchema,
 		},
 		{
 			Name:             "propose_turnover_ticket",
@@ -97,6 +235,7 @@ var superhostToolRegistry = func() map[string]ToolDefinition {
 			RequiresApproval: true,
 			ApprovalKind:     "operations",
 			Idempotent:       true,
+			Parameters:       proposeTicketSchema,
 		},
 		{
 			Name:             "propose_inspection_ticket",
@@ -107,6 +246,7 @@ var superhostToolRegistry = func() map[string]ToolDefinition {
 			RequiresApproval: true,
 			ApprovalKind:     "operations",
 			Idempotent:       true,
+			Parameters:       proposeTicketSchema,
 		},
 		{
 			Name:          "propose_restock",
@@ -122,6 +262,7 @@ var superhostToolRegistry = func() map[string]ToolDefinition {
 			RequiresApproval: true,
 			ApprovalKind:     "operations",
 			Idempotent:       true,
+			Parameters:       proposeTicketSchema,
 		},
 		{
 			Name:          "propose_maintenance_request",
@@ -134,6 +275,7 @@ var superhostToolRegistry = func() map[string]ToolDefinition {
 			RequiresApproval: true,
 			ApprovalKind:     "operations",
 			Idempotent:       true,
+			Parameters:       proposeTicketSchema,
 		},
 		{
 			Name:          "propose_incident_report",
@@ -147,6 +289,7 @@ var superhostToolRegistry = func() map[string]ToolDefinition {
 			RequiresApproval: true,
 			ApprovalKind:     "operations",
 			Idempotent:       true,
+			Parameters:       proposeTicketSchema,
 		},
 		{
 			Name:             "request_owner_approval",
@@ -157,6 +300,7 @@ var superhostToolRegistry = func() map[string]ToolDefinition {
 			RequiresApproval: true,
 			ApprovalKind:     "owner",
 			Idempotent:       true,
+			Parameters:       requestApprovalSchema,
 		},
 		{
 			Name:             "request_operations_approval",
@@ -167,6 +311,7 @@ var superhostToolRegistry = func() map[string]ToolDefinition {
 			RequiresApproval: true,
 			ApprovalKind:     "operations",
 			Idempotent:       true,
+			Parameters:       requestApprovalSchema,
 		},
 		{
 			Name:             "send_approved_notification",
@@ -177,6 +322,7 @@ var superhostToolRegistry = func() map[string]ToolDefinition {
 			RequiresApproval: true,
 			ApprovalKind:     "operations",
 			Idempotent:       true,
+			Parameters:       sendNotificationSchema,
 		},
 		{
 			Name:             "assemble_document_packet",
@@ -187,6 +333,7 @@ var superhostToolRegistry = func() map[string]ToolDefinition {
 			RequiresApproval: true,
 			ApprovalKind:     "operations",
 			Idempotent:       true,
+			Parameters:       assembleDocumentPacketSchema,
 		},
 		{
 			Name:             "summarize_incident",
@@ -196,6 +343,7 @@ var superhostToolRegistry = func() map[string]ToolDefinition {
 			Description:      "Read-only incident summary from assembled context",
 			RequiresApproval: false,
 			Idempotent:       true,
+			Parameters:       readToolSchema,
 		},
 		{
 			Name:             "escalate_exception",
@@ -206,6 +354,7 @@ var superhostToolRegistry = func() map[string]ToolDefinition {
 			RequiresApproval: true,
 			ApprovalKind:     "operations",
 			Idempotent:       true,
+			Parameters:       escalateExceptionSchema,
 		},
 		{
 			Name:             "ui_focus",
@@ -215,6 +364,7 @@ var superhostToolRegistry = func() map[string]ToolDefinition {
 			Description:      "Focus a registered UI element in the user's current browser view",
 			RequiresApproval: false,
 			Idempotent:       false,
+			Parameters:       uiSurfaceOnlySchema,
 		},
 		{
 			Name:             "ui_set_value",
@@ -224,6 +374,7 @@ var superhostToolRegistry = func() map[string]ToolDefinition {
 			Description:      "Set the value of a registered UI form element in the user's current browser view",
 			RequiresApproval: false,
 			Idempotent:       false,
+			Parameters:       uiSetValueSchema,
 		},
 		{
 			Name:             "ui_click",
@@ -233,6 +384,7 @@ var superhostToolRegistry = func() map[string]ToolDefinition {
 			Description:      "Click a registered UI element in the user's current browser view",
 			RequiresApproval: false,
 			Idempotent:       false,
+			Parameters:       uiSurfaceOnlySchema,
 		},
 		{
 			Name:             "ui_scroll_to",
@@ -242,6 +394,7 @@ var superhostToolRegistry = func() map[string]ToolDefinition {
 			Description:      "Scroll a registered UI element into view in the user's current browser view",
 			RequiresApproval: false,
 			Idempotent:       false,
+			Parameters:       uiSurfaceOnlySchema,
 		},
 		{
 			Name:             "ui_open_panel",
@@ -251,6 +404,7 @@ var superhostToolRegistry = func() map[string]ToolDefinition {
 			Description:      "Open a registered UI panel in the user's current browser view",
 			RequiresApproval: false,
 			Idempotent:       false,
+			Parameters:       uiSurfaceOnlySchema,
 		},
 		{
 			Name:             "list_my_tasks",
@@ -260,6 +414,7 @@ var superhostToolRegistry = func() map[string]ToolDefinition {
 			Description:      "List this account's own Superhost task ledger: open items and recently resolved ones",
 			RequiresApproval: false,
 			Idempotent:       true,
+			Parameters:       noArgsSchema,
 		},
 		{
 			Name:          "log_task",
@@ -274,6 +429,7 @@ var superhostToolRegistry = func() map[string]ToolDefinition {
 			// approve or deny.
 			RequiresApproval: false,
 			Idempotent:       false,
+			Parameters:       logTaskSchema,
 		},
 		{
 			Name:             "resolve_task",
@@ -286,6 +442,7 @@ var superhostToolRegistry = func() map[string]ToolDefinition {
 			// calling it again with the same status just re-sets the same
 			// state rather than creating anything new.
 			Idempotent: true,
+			Parameters: resolveTaskSchema,
 		},
 	}
 

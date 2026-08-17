@@ -15,6 +15,11 @@ import welcomeKit from "../assets/products/welcome-kit.webp";
 import soap from "../assets/products/soap.webp";
 import guestBathTowel from "../assets/products/guest-bath-towel.webp";
 import guestBedSheet from "../assets/products/guest-bed-sheet.webp";
+import floorCleaner from "../assets/products/floor-cleaner.webp";
+import dishwashLiquid from "../assets/products/dishwash-liquid.webp";
+import microfiberCloths from "../assets/products/microfiber-cloths.webp";
+import basmatiRice from "../assets/products/basmati-rice.webp";
+import toiletCleaner from "../assets/products/toilet-cleaner.webp";
 
 import bathTowelBrown from "../assets/products/bath-towel-brown.webp";
 import sheetSetSage from "../assets/products/sheet-set-sage.webp";
@@ -151,6 +156,16 @@ const BY_STORE_ITEM_ID: Record<string, CatalogImage> = {
   mock_catalog_tea: { src: tea, label: "Tea" },
   mock_catalog_cotton_towels: { src: guestBathTowel, label: "Bath Towel" },
   mock_catalog_bed_sheet: { src: guestBedSheet, label: "Bed Sheet" },
+  mock_catalog_floor_cleaner: { src: floorCleaner, label: "Floor Cleaner" },
+  mock_catalog_dishwash_liquid: { src: dishwashLiquid, label: "Dishwash Liquid" },
+  mock_catalog_microfiber_cloths: { src: microfiberCloths, label: "Cleaning Cloths" },
+  mock_catalog_basmati_rice: { src: basmatiRice, label: "Basmati Rice" },
+  mock_catalog_toilet_cleaner: { src: toiletCleaner, label: "Toilet Cleaner" },
+  // mock_catalog_paper_towels intentionally has no photo: every sourced
+  // candidate for "kitchen paper towels" was visually indistinguishable
+  // from a toilet-paper roll -- a wrong photo is worse than no photo (see
+  // the CANDLE-01/02 precedent above). Falls back to the category badge
+  // until a real, honest match is sourced.
 };
 
 export function getStoreCatalogImage(itemId: string): CatalogImage | undefined {

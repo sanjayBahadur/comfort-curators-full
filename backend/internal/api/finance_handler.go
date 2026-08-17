@@ -33,6 +33,7 @@ func NewFinanceSliceHandler(billingSvc *billing.Service, documentsSvc *documents
 
 func (h *FinanceSliceHandler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /v1/billing/charges", h.handleCreateCharge)
+	mux.HandleFunc("POST /v1/billing/charges/{charge_id}/apply", h.handleApplyCharge)
 	mux.HandleFunc("POST /v1/billing/invoices", h.handleIssueInvoice)
 	mux.HandleFunc("POST /v1/billing/credits", h.handleIssueCredit)
 	mux.HandleFunc("POST /v1/financial-approvals/{approval_id}/decisions", h.handleDecideFinancialApproval)
@@ -466,6 +467,45 @@ func (h *FinanceSliceHandler) handleCreateCharge(w http.ResponseWriter, r *http.
 	view := chargeAPIView(created)
 	writeETag(w, int(created.Version))
 	writeResource(w, http.StatusCreated, created.ID, int(created.Version), view)
+}
+
+// POST /v1/billing/charges/{charge_id}/apply — posts a pending charge so it
+// counts as real revenue in contribution and monthly reports. See
+// billing.Service.ApplyCharge: every charge is created "pending" so it can
+// be reviewed before it affects any report; this is what moves it forward.
+func (h *FinanceSliceHandler) handleApplyCharge(w http.ResponseWriter, r *http.Request) {
+	subject, err := h.finSubject(r)
+	if err != nil {
+		writeError(w, r, http.StatusUnauthorized, "UNAUTHORIZED", "authentication required")
+		return
+	}
+	if !hasRole(subject.Roles, RoleOwner) && !hasRole(subject.Roles, "staff") {
+		writeError(w, r, http.StatusForbidden, "FORBIDDEN", "applying charges requires owner or staff role")
+		return
+	}
+
+	chargeID := r.PathValue("charge_id")
+	existing, err := h.billingSvc.GetCharge(r.Context(), subject.TenantID, chargeID)
+	if err != nil {
+		status, code := mapBillingError(err)
+		writeError(w, r, status, code, err.Error())
+		return
+	}
+	if !h.scopeOK(r.Context(), subject, existing.PropertyID) {
+		writeError(w, r, http.StatusNotFound, "NOT_FOUND", "property not found")
+		return
+	}
+
+	applied, err := h.billingSvc.ApplyCharge(r.Context(), subject.TenantID, chargeID, subject.ActorID)
+	if err != nil {
+		status, code := mapBillingError(err)
+		writeError(w, r, status, code, err.Error())
+		return
+	}
+
+	view := chargeAPIView(applied)
+	writeETag(w, int(applied.Version))
+	writeResource(w, http.StatusOK, applied.ID, int(applied.Version), view)
 }
 
 func (h *FinanceSliceHandler) handleIssueInvoice(w http.ResponseWriter, r *http.Request) {

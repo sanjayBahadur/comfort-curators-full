@@ -946,6 +946,139 @@ async function seedPackages(
   }
 }
 
+// This month's real billing activity per property, index-aligned with
+// propertySeed. Without this, /invoices and the reporting projections
+// (property-contribution, owner-exceptions, the monthly report) have zero
+// charges anywhere and every report renders empty -- there's real
+// financial-review demo surface area with nothing seeded to show on it.
+// Amounts are plausible flat INR management fees for a short-term rental
+// portfolio this size; purchased_goods is not guessed -- it's read from
+// each property's own real activated package cost.
+const billingSeed: Array<{
+  managementFeeMinorUnits: number;
+  taskServiceMinorUnits: number;
+  taskServiceReason: string;
+  discount?: { minorUnits: number; reason: string };
+}> = [
+  {
+    managementFeeMinorUnits: 420000,
+    taskServiceMinorUnits: 260000,
+    taskServiceReason: "Turnover, restock, and inspection service — August 2026 cycle",
+  },
+  {
+    managementFeeMinorUnits: 320000,
+    taskServiceMinorUnits: 180000,
+    taskServiceReason: "Turnover and routine maintenance service — August 2026 cycle",
+    discount: { minorUnits: 50000, reason: "Loyalty discount — long-standing owner account" },
+  },
+  {
+    managementFeeMinorUnits: 650000,
+    taskServiceMinorUnits: 340000,
+    taskServiceReason: "Turnover, restock, and specialist vendor coordination — August 2026 cycle",
+  },
+  {
+    managementFeeMinorUnits: 380000,
+    taskServiceMinorUnits: 220000,
+    taskServiceReason: "Turnover and pre-arrival inspection service — August 2026 cycle",
+  },
+  {
+    managementFeeMinorUnits: 320000,
+    taskServiceMinorUnits: 160000,
+    taskServiceReason: "Routine maintenance and inventory count service — August 2026 cycle",
+  },
+];
+
+function billingSlug(label: string) {
+  return label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-+|-+$)/g, "");
+}
+
+async function postAndApplyCharge(
+  propertyId: string,
+  chargeType: string,
+  amountMinorUnits: number,
+  currency: string,
+  reason: string,
+  idempotencyKey: string,
+) {
+  const charge = await request<Resource<{ status: string }>>("/v1/billing/charges", {
+    method: "POST",
+    body: {
+      idempotency_key: idempotencyKey,
+      amount: { minor_units: amountMinorUnits, currency },
+      reason,
+      data: { property_id: propertyId, charge_type: chargeType },
+    },
+  });
+  if (charge.data.status !== "applied") {
+    await request(`/v1/billing/charges/${charge.id}/apply`, { method: "POST", body: {} });
+  }
+  return charge;
+}
+
+async function seedBilling(properties: Array<Resource<PropertyData>>) {
+  step("Posting and applying this month's billing charges and credits");
+
+  for (const [index, property] of properties.entries()) {
+    const label = propertySeed[index].label;
+    const seed = billingSeed[index];
+    const key = billingSlug(label);
+
+    const versions = await request<Collection<PackageData>>(
+      `/v1/properties/${property.id}/packages`,
+    );
+    const active = versions.items.find((version) => version.data.status === "active");
+    const currency = active?.data.currency ?? "INR";
+
+    const managementFeeCharge = await postAndApplyCharge(
+      property.id,
+      "management_fee",
+      seed.managementFeeMinorUnits,
+      currency,
+      `August 2026 management fee — ${label}`,
+      `comfort-curators-demo-billing-${key}-management-fee-v1`,
+    );
+    await postAndApplyCharge(
+      property.id,
+      "task_service",
+      seed.taskServiceMinorUnits,
+      currency,
+      seed.taskServiceReason,
+      `comfort-curators-demo-billing-${key}-task-service-v1`,
+    );
+    if (active) {
+      await postAndApplyCharge(
+        property.id,
+        "purchased_goods",
+        active.data.monthly_cost_minor_units,
+        currency,
+        `Package supplies — ${label} — August 2026 cycle`,
+        `comfort-curators-demo-billing-${key}-purchased-goods-v1`,
+      );
+    }
+    if (seed.discount) {
+      // A credit is a correction, not a standalone entry -- the backend
+      // requires it to preserve a real original_entry_id. This discount
+      // corrects the management fee charge just posted above.
+      await request("/v1/billing/credits", {
+        method: "POST",
+        body: {
+          idempotency_key: `comfort-curators-demo-billing-${key}-discount-v1`,
+          amount: { minor_units: seed.discount.minorUnits, currency },
+          reason: seed.discount.reason,
+          data: {
+            property_id: property.id,
+            credit_type: "discount",
+            original_entry_id: managementFeeCharge.id,
+            original_entry_type: "charge",
+          },
+        },
+      });
+    }
+    count("created", "billing_entries");
+    detail(`billed and applied ${label}`);
+  }
+}
+
 const workerSeed = [
   {
     legal_name: "Asha Verma",
@@ -1041,6 +1174,16 @@ const ticketSeed = [
     requested_window: {
       start: "2026-08-13T08:30:00Z",
       end: "2026-08-13T10:30:00Z",
+    },
+  },
+  {
+    propertyIndex: 0,
+    type: "pre_arrival_inspection",
+    targetStatus: "approved",
+    reason: "Complete the pre-arrival quality check at Gomti Riverside ahead of this week's arrival",
+    requested_window: {
+      start: "2026-08-15T05:00:00Z",
+      end: "2026-08-15T06:00:00Z",
     },
   },
   {
@@ -1524,6 +1667,9 @@ async function main() {
   await seedPackages(properties, catalog);
   const workers = await seedWorkers();
   await seedTickets(properties, workers);
+  await createOwnerSession();
+  await seedBilling(properties);
+  await createStaffSession();
   const reservationChains = [];
   for (const [index, property] of properties.entries()) {
     reservationChains.push(

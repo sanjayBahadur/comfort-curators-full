@@ -39,4 +39,16 @@ type ApprovedToolExecutor interface {
 	ExecuteApproved(ctx context.Context, run *AgentRun, toolName string, arguments json.RawMessage) (string, error)
 }
 
-const MaxToolLoopIterations = 6
+// Was 6. Confirmed live (Mahanagar Suite, "under 2000 INR, furniture and
+// toiletries"): with only 6 iterations to spend, adding N catalog items
+// costs N of them outright (one ui_click per item), leaving no room to
+// also check shop-cart-running-total between adds the way the prompt
+// asks -- a real 8-9 item budget build has no choice but to cram every
+// add into as few turns as possible and check the total only once, at
+// the very end, past the point where overshooting is still preventable.
+// The run in question added 9 items blind, checked the total for the
+// first and only time on iteration 9, then hit the cap and failed before
+// that check's result ever reached a turn that could act on it -- and the
+// cart it left behind was already over budget. Raised well past what a
+// real multi-item build plus interleaved running-total checks needs.
+const MaxToolLoopIterations = 30

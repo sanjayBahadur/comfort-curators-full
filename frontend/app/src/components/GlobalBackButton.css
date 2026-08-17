@@ -1,6 +1,6 @@
 .global-back-button {
   position: fixed;
-  z-index: 91;
+  z-index: 2100;
   top: 16px;
   left: 16px;
   min-height: 36px;

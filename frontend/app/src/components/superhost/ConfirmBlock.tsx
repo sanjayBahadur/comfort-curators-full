@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "../../lib/api/client";
 import type { MappedSuperhostEvent } from "./behavior";
 import "./ConfirmBlock.css";
@@ -16,8 +16,35 @@ type ConfirmBlockProps = {
   approval: Approval;
 };
 
+// Fired whenever an approval request is genuinely waiting on a person and
+// again when it stops -- GlobalSuperhostButton listens for this to glow
+// orange, so "Superhost needs you in the chat" is visible even with the
+// drawer minimized (which it now is by default the instant a message is
+// sent -- see GlobalSuperhost.tsx's own minimize-on-send). detail:true
+// on mount (a fresh approval, keyed by requestId, always mounts a new
+// instance of this component -- see SuperhostMount's `key={approval.
+// requestId}`), detail:false the moment it's actually decided or this
+// instance goes away.
+export const SUPERHOST_NEEDS_INPUT_EVENT = "cc:superhost-needs-input";
+
+function announceNeedsInput(pending: boolean) {
+  window.dispatchEvent(new CustomEvent<boolean>(SUPERHOST_NEEDS_INPUT_EVENT, { detail: pending }));
+}
+
 export default function ConfirmBlock({ approval }: ConfirmBlockProps) {
   const [submission, setSubmission] = useState<SubmissionState>({ status: "idle" });
+
+  useEffect(() => {
+    announceNeedsInput(true);
+    return () => announceNeedsInput(false);
+    // Mount/unmount only -- a fresh approval is a fresh component instance
+    // (keyed by requestId), so this never needs to re-fire mid-life.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (submission.status === "success") announceNeedsInput(false);
+  }, [submission.status]);
 
   async function decide(decision: Decision) {
     setSubmission({ status: "pending", decision });

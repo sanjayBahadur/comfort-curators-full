@@ -8,13 +8,14 @@ import { propertyName } from "../../routes/ops-format";
 import "./global-superhost-drawer.css";
 
 // The drawer is mounted once at the app root with no route params of its
-// own -- most pages set a "current property" (see current-property.ts),
-// but a page that manages more than one property (the owner dashboard,
-// when there's more than a single property) deliberately doesn't, so a
-// page-embedded SuperhostMount never assumes which one you mean.
+// own -- most pages set a "current property" (see current-property.ts).
+// The owner dashboard now does too, synced to its own Property cabinet
+// selection (see dashboard.tsx) -- selecting a property there scopes
+// Superhost to it, same as any other page.
 //
-// The drawer itself no longer needs a property before it can do
-// anything, though: with no current property in view, it now connects a
+// The drawer itself doesn't require a property before it can do
+// anything, though: with no current property in view (nothing selected
+// yet, or a page that genuinely spans the whole account), it connects a
 // portfolio-scoped thread (SuperhostMount's allowPortfolio) that can see
 // and act across every property this account manages in one
 // conversation -- "manage individual properties in parallel" without

@@ -10,6 +10,7 @@ import {
 import { useControlSession } from "./ControlSession";
 import { useAgentSurface, useAgentSurfaceContext } from "../agent-surface/context";
 import Terminal, { type TerminalLine } from "./Terminal";
+import { SUPERHOST_NEEDS_INPUT_EVENT } from "./ConfirmBlock";
 import "./payment-boundary.css";
 
 type PaymentBoundaryContextValue = {
@@ -84,6 +85,16 @@ export function PaymentBoundary({ children, boundaryId }: PaymentBoundaryProps) 
     }
   }, [session.state, restoreAll]);
 
+  // The handoff itself is the clearest "come look" moment there is --
+  // control was just taken away specifically because the next step is
+  // the person's alone. Reuses the same signal ConfirmBlock uses (see
+  // GlobalSuperhostButton), so the one launcher glows orange for either
+  // reason: a real approval sitting in the chat, or a checkout tripwire
+  // that just handed back control.
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent<boolean>(SUPERHOST_NEEDS_INPUT_EVENT, { detail: triggered }));
+  }, [triggered]);
+
   useEffect(() => {
     if (!boundaryId) return undefined;
     const handleAttempt = (event: Event) => {
@@ -99,6 +110,22 @@ export function PaymentBoundary({ children, boundaryId }: PaymentBoundaryProps) 
         <>
           <div className="payment-boundary-frame" aria-hidden="true" />
           <div className="payment-boundary-notice" role="alert">
+            {/* The notice used to only clear on the next handover, with no
+                way to dismiss it in place -- on a bottom-right layout it sat
+                directly over the real, human-owned activate control it was
+                supposed to hand back to, so there was no way to actually
+                reach that button afterward. Dismissing here only hides this
+                notice; it does not re-grant control, so the boundary itself
+                is unaffected. */}
+            <button
+              type="button"
+              className="payment-boundary-dismiss"
+              aria-label="Dismiss payment boundary notice"
+              data-control-exempt="true"
+              onClick={() => setTriggered(false)}
+            >
+              ×
+            </button>
             <Terminal lines={GATE3_LINES} />
           </div>
         </>

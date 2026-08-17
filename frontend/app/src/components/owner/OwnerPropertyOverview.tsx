@@ -97,7 +97,7 @@ function MiniCalendar({ reservations, timezone }: { reservations: ReservationDat
   );
 }
 
-export default function OwnerPropertyOverview({ properties, selectedIndex, onSelect }: { properties: DashboardProperty[]; selectedIndex: number; onSelect: (index: number) => void }) {
+export default function OwnerPropertyOverview({ properties, selectedIndex }: { properties: DashboardProperty[]; selectedIndex: number }) {
   const property = properties[selectedIndex];
   const reservationsQuery = useQuery({
     queryKey: ["owner", "property-reservations", property.property.id],
@@ -113,19 +113,13 @@ export default function OwnerPropertyOverview({ properties, selectedIndex, onSel
   const openWork = property.tickets.filter((ticket) => !CLOSED_WORK.has(ticket.data.status)).length;
   const completedWork = property.tickets.filter((ticket) => ticket.data.status === "verified" || ticket.data.status === "closed").length;
   const readiness = Object.values(property.property.data.readiness).filter(Boolean).length;
-  const previous = (selectedIndex - 1 + properties.length) % properties.length;
-  const next = (selectedIndex + 1) % properties.length;
   const address = property.property.data.service_address;
 
   return (
     <section className="owner-overview" aria-labelledby="owner-overview-title">
       <header className="owner-overview-selector">
-        <div><span>01 / PROPERTY COMMAND VIEW</span><strong id="owner-overview-title">{nameOf(property)}</strong><small>{address.line1}, {address.city}</small></div>
-        <div className="owner-overview-carousel" aria-label="Choose property">
-          <button type="button" onClick={() => onSelect(previous)} disabled={properties.length < 2} aria-label="Previous property">←</button>
-          <span>{String(selectedIndex + 1).padStart(2, "0")} / {String(properties.length).padStart(2, "0")}</span>
-          <button type="button" onClick={() => onSelect(next)} disabled={properties.length < 2} aria-label="Next property">→</button>
-        </div>
+        <div><span>PROPERTY WORKSPACE</span><strong id="owner-overview-title">{nameOf(property)}</strong><small>{address.line1}, {address.city}</small></div>
+        <div className="owner-overview-state"><span>OPERATING STATE</span><strong>{property.property.data.state.replaceAll("_", " ")}</strong><small>{readiness}/3 READY</small></div>
       </header>
 
       <div className="owner-overview-metrics">

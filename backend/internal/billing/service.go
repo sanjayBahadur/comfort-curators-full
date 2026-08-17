@@ -158,6 +158,39 @@ func (s *Service) ListCharges(ctx context.Context, tenantID, propertyID string) 
 	return s.store.ListCharges(ctx, tenantID, propertyID)
 }
 
+// ApplyCharge posts a pending charge so it is counted as real revenue in
+// contribution and monthly reports. Every charge is created "pending"
+// (CreateCharge) so it can be reviewed before it affects any report; this is
+// the one path that moves it to "applied". Applying an already-applied or
+// corrected charge is a no-op that returns the charge unchanged rather than
+// erroring, so a retried request is safe.
+func (s *Service) ApplyCharge(ctx context.Context, tenantID, chargeID, actorID string) (*Charge, error) {
+	existing, err := s.store.GetCharge(ctx, tenantID, chargeID)
+	if err != nil {
+		return nil, err
+	}
+	if existing.Status != ChargeStatusPending {
+		return existing, nil
+	}
+
+	charge, err := s.store.UpdateChargeStatus(ctx, s.pool, tenantID, chargeID, ChargeStatusApplied)
+	if err != nil {
+		return nil, err
+	}
+
+	s.appendAudit(ctx, audit.AuditEvent{
+		EventType:    audit.EventTypeMutation,
+		TenantID:     tenantID,
+		ActorID:      actorID,
+		Action:       "billing.charge.applied",
+		ResourceType: "charge",
+		ResourceID:   charge.ID,
+		NewState:     marshalJSON(charge),
+	})
+
+	return charge, nil
+}
+
 // ============================================================
 // Invoices
 // ============================================================

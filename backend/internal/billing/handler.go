@@ -20,6 +20,7 @@ func NewHandler(svc *Service) *Handler {
 
 func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /v1/billing/charges", h.handleCreateCharge)
+	mux.HandleFunc("POST /v1/billing/charges/{charge_id}/apply", h.handleApplyCharge)
 	mux.HandleFunc("POST /v1/billing/invoices", h.handleIssueInvoice)
 	mux.HandleFunc("POST /v1/billing/credits", h.handleIssueCredit)
 	mux.HandleFunc("POST /v1/financial-approvals/{approval_id}/decisions", h.handleDecideFinancialApproval)
@@ -213,6 +214,29 @@ func (h *Handler) handleCreateCharge(w http.ResponseWriter, r *http.Request) {
 	}
 
 	apiResource(w, http.StatusCreated, created.ID, created.Version, chargeView(created))
+}
+
+// ============================================================
+// POST /v1/billing/charges/{charge_id}/apply
+// ============================================================
+
+func (h *Handler) handleApplyCharge(w http.ResponseWriter, r *http.Request) {
+	tenantID, actorID, err := subjectFromRequest(r)
+	if err != nil {
+		apiError(w, r, http.StatusUnauthorized, "UNAUTHORIZED", "authentication required")
+		return
+	}
+
+	chargeID := r.PathValue("charge_id")
+
+	applied, err := h.svc.ApplyCharge(r.Context(), tenantID, chargeID, actorID)
+	if err != nil {
+		status, code := mapError(err)
+		apiError(w, r, status, code, err.Error())
+		return
+	}
+
+	apiResource(w, http.StatusOK, applied.ID, applied.Version, chargeView(applied))
 }
 
 // ============================================================

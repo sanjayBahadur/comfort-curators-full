@@ -35,7 +35,31 @@
 }
 
 .shop-header > span:first-child { grid-column: 2; }
-.shop-header span:last-child { text-align: right; grid-column: 4; }
+
+.shop-cart-summary-button {
+  min-height: 34px;
+  padding: 0 14px;
+  border: var(--rule);
+  background: var(--paper);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  justify-self: end;
+  grid-column: 4;
+  transition: background 150ms var(--ease-expo-out);
+}
+
+.shop-cart-summary-button:hover:not(:disabled),
+.shop-cart-summary-button:focus-visible {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.shop-cart-summary-button:disabled { cursor: not-allowed; opacity: 0.4; }
 
 .shop-filter-column {
   padding: 20px 16px 24px;
@@ -347,17 +371,20 @@
 }
 
 .shop-cart-column {
-  display: grid;
+  display: flex;
   min-width: 0;
+  min-height: 0;
+  overflow: hidden;
   border-left: var(--rule);
   background: var(--paper);
+  flex-direction: column;
   grid-area: cart;
-  grid-template-rows: auto auto auto minmax(0, 1fr) auto auto auto;
 }
 
 .shop-cart-column[data-over="true"] { border: 1px dashed var(--ink); background: var(--paper-2); }
 
 .shop-cart-heading {
+  flex: 0 0 auto;
   min-height: 48px;
   padding: 0 18px;
   border-bottom: var(--rule);
@@ -391,10 +418,23 @@
   text-align: center;
 }
 
+.shop-offline,
+.shop-drop-label,
+.shop-cart-presets { flex: 0 0 auto; }
+
 .shop-drop-label { border-bottom: var(--rule); background: var(--paper-2); color: var(--ink); }
 
 .shop-cart-rows {
+  /* flex-grow: 0, not 1 -- this used to greedily claim all leftover space
+     in the column as more items were added, squeezing .shop-cart-checkout
+     (costs, rules, the actual activate button) down toward nothing. A
+     long cart should scroll *within its own capped box*, never push the
+     checkout section below the fold to do it -- there's already a
+     dedicated cart view (the CART/N modal) for browsing every line; this
+     inline list doesn't need to grow to fit all of them at once. */
+  flex: 0 1 auto;
   min-height: 120px;
+  max-height: 40vh;
   padding: 12px;
   overflow-y: auto;
 }
@@ -467,11 +507,24 @@
 .shop-empty-cart strong { font-family: "Archivo Black", "Arial Black", sans-serif; font-size: 24px; }
 .shop-empty-cart em { color: var(--ink-40); font-family: "Instrument Serif", Georgia, serif; font-size: 22px; }
 
+.shop-cart-checkout {
+  display: flex;
+  flex: 0 1 auto;
+  max-height: min(68%, 500px);
+  min-height: 0;
+  overflow-y: auto;
+  border-top: var(--rule);
+  background: var(--paper);
+  flex-direction: column;
+  scrollbar-color: var(--ink-40) var(--paper);
+  scrollbar-width: thin;
+}
+
 .shop-costs {
   display: grid;
   position: relative;
+  flex: 0 0 auto;
   padding: 16px 18px;
-  border-top: var(--rule);
   gap: 14px;
   transition: opacity 150ms linear;
 }
@@ -499,9 +552,32 @@
 }
 .shop-monthly-total[data-marker="true"] svg { opacity: 1; }
 
-.shop-rules { border-top: var(--rule); font-family: "JetBrains Mono Variable", monospace; font-size: 10px; }
-.shop-rules summary { padding: 12px 18px; cursor: pointer; font-size: 11px; letter-spacing: 0.08em; list-style: none; }
-.shop-rules summary::after { float: right; content: "+"; }
+.shop-rules { flex: 0 0 auto; border-top: var(--rule); font-family: "JetBrains Mono Variable", monospace; font-size: 10px; }
+.shop-rules summary {
+  display: flex;
+  position: sticky;
+  z-index: 2;
+  top: 0;
+  min-height: 42px;
+  padding: 0 18px;
+  background: var(--paper);
+  cursor: pointer;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  list-style: none;
+}
+.shop-rules summary::after {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  border: var(--rule);
+  content: "+";
+  flex: 0 0 auto;
+  place-items: center;
+}
+.shop-rules[open] summary { border-bottom: 1px solid var(--ink-12); }
 .shop-rules[open] summary::after { content: "−"; }
 .shop-rules fieldset { display: grid; margin: 0; padding: 0 18px 12px; border: 0; gap: 4px; }
 .shop-rules legend { margin-bottom: 7px; padding: 0; color: var(--ink-60); }
@@ -516,6 +592,7 @@
 .shop-budget small { color: var(--ink-60); font-size: 8px; }
 
 .shop-activate {
+  flex: 0 0 auto;
   min-height: 54px;
   border: 0;
   border-top: var(--rule);
@@ -567,6 +644,86 @@
 .shop-quick-close { position: absolute; z-index: 2; top: 10px; right: 10px; padding: 6px; border: var(--rule); background: var(--paper); font-family: "JetBrains Mono Variable", monospace; font-size: 10px; }
 .shop-quick-view > .modal-content { display: grid; grid-template-columns: minmax(240px, 1fr) minmax(240px, 1fr); }
 .shop-quick-view .modal-content > .shop-product-visual { border-right: var(--rule); border-bottom: 0; }
+
+/* The full-cart review -- same rows, same theme as the sidebar cart, just
+   roomy enough to see everything at once instead of scrolling a 440px
+   column. */
+.shop-cart-modal {
+  width: min(860px, calc(100vw - 40px));
+  max-height: 80vh;
+}
+
+.shop-cart-modal-actions {
+  display: flex;
+  margin-bottom: 12px;
+  justify-content: flex-end;
+}
+
+.shop-cart-modal-actions button {
+  min-height: 24px;
+  padding: 0 8px;
+  border: 1px solid var(--red);
+  background: var(--paper);
+  color: var(--red);
+  font-family: "JetBrains Mono Variable", monospace;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.shop-cart-modal-actions button:hover { background: var(--red); color: var(--paper); }
+
+.shop-cart-modal-clear-confirm {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-family: "JetBrains Mono Variable", monospace;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--red);
+}
+
+.shop-cart-modal-clear-confirm button {
+  min-height: 24px;
+  padding: 0 10px;
+  border: 1px solid var(--red);
+  background: var(--paper);
+  color: var(--red);
+  font-family: "JetBrains Mono Variable", monospace;
+  font-size: 9px;
+  cursor: pointer;
+}
+
+.shop-cart-modal-clear-confirm button:first-of-type:hover { background: var(--red); color: var(--paper); }
+
+.shop-cart-modal-rows {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.shop-cart-modal-rows .shop-cart-row { cursor: default; }
+
+.shop-cart-modal-total {
+  display: flex;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: var(--rule);
+  align-items: baseline;
+  justify-content: space-between;
+  font-family: "JetBrains Mono Variable", monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.shop-cart-modal-total strong { font-family: "Archivo Variable", Arial, sans-serif; font-size: 22px; letter-spacing: -0.02em; text-transform: none; }
+
+@media (max-width: 640px) {
+  .shop-cart-modal-rows { grid-template-columns: minmax(0, 1fr); }
+}
 .shop-quick-view .modal-content > div:last-child { display: grid; min-width: 0; padding: 190px 28px 28px; align-content: end; gap: 10px; }
 .shop-quick-view h2 { margin: 0; font-family: "Instrument Serif", Georgia, serif; font-size: 48px; font-weight: 400; letter-spacing: -0.03em; line-height: 0.95; }
 .shop-quick-view p,
@@ -593,7 +750,7 @@
   }
   .shop-header { padding: 0; grid-template-columns: 136px minmax(0, 1fr) 148px; }
   .shop-header > span:first-child,
-  .shop-header span:last-child { display: none; }
+  .shop-cart-summary-button { display: none; }
   .shop-header strong { max-width: 100%; text-align: center; grid-column: 2; }
   .shop-filter-column {
     display: block;
@@ -634,7 +791,8 @@
     pointer-events: none;
     transition: clip-path 420ms var(--ease-expo-out);
   }
-  .shop-cart-column.is-open { display: grid; clip-path: inset(0); pointer-events: auto; }
+  .shop-cart-column.is-open { display: flex; clip-path: inset(0); pointer-events: auto; }
+  .shop-cart-checkout { max-height: min(66%, 460px); }
   .shop-mobile-cart {
     display: flex;
     position: fixed;

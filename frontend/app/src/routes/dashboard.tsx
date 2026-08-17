@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, Navigate, useLocation } from "react-router-dom";
 import Money from "../components/money";
@@ -10,12 +10,13 @@ import {
 import type { Envelope } from "../lib/api/client";
 import type { TicketData } from "../lib/api/ops";
 import { getRole, getToken } from "../lib/auth/session";
-import { setCurrentProperty, clearCurrentProperty } from "../lib/current-property";
 import { useAgentSurface } from "../components/agent-surface/context";
 import type { AgentAction } from "../components/agent-surface/types";
 import { getPropertyImage } from "../lib/property-images";
 import OwnerPropertyOverview from "../components/owner/OwnerPropertyOverview";
 import OwnerTaskTerminal from "../components/owner/OwnerTaskTerminal";
+import { getPendingPurchase, subscribePendingPurchase } from "../lib/pending-purchase";
+import { setCurrentProperty, clearCurrentProperty } from "../lib/current-property";
 import "./dashboard.css";
 
 const COMMITTED_STATUSES = new Set(["approved", "scheduled", "assigned", "in_progress"]);
@@ -41,6 +42,8 @@ type AttentionItem = {
   summary: string;
   propertyName: string;
   status: string;
+  actionLabel: string;
+  to: string;
 };
 
 function OwnerGate({ children }: { children: React.ReactNode }) {
@@ -102,13 +105,18 @@ function buildAttention(
   exceptions: Array<Envelope<OwnerExceptionData>>,
 ): AttentionItem[] {
   const propertyById = new Map(properties.map((property) => [property.property.id, property]));
-  const reported = exceptions.map((exception) => ({
-    id: exception.id,
-    label: exception.data.label,
-    summary: exception.data.summary,
-    propertyName: propertyName(propertyById.get(exception.data.property_id)!),
-    status: exception.data.status,
-  }));
+  const reported = exceptions.map((exception) => {
+    const property = propertyById.get(exception.data.property_id)!;
+    return {
+      id: exception.id,
+      label: exception.data.label,
+      summary: exception.data.summary,
+      propertyName: propertyName(property),
+      status: exception.data.status,
+      actionLabel: "Review property",
+      to: `/properties/${property.property.id}`,
+    };
+  });
   const propertyConcerns = properties.flatMap((property) => {
     const concerns: AttentionItem[] = [];
     if (property.property.data.state !== "active") {
@@ -118,6 +126,8 @@ function buildAttention(
         summary: `Current lifecycle state: ${property.property.data.state.replaceAll("_", " ")}.`,
         propertyName: propertyName(property),
         status: property.property.data.state,
+        actionLabel: "Continue setup",
+        to: "/onboarding",
       });
     }
     const missingReadiness = Object.entries(property.property.data.readiness)
@@ -130,6 +140,8 @@ function buildAttention(
         summary: `${missingReadiness.join(", ")} ${missingReadiness.length === 1 ? "is" : "are"} incomplete.`,
         propertyName: propertyName(property),
         status: "incomplete",
+        actionLabel: "Complete readiness",
+        to: "/onboarding",
       });
     }
     if (!property.activePackage) {
@@ -139,6 +151,8 @@ function buildAttention(
         summary: "Choose the operating inventory package for this property.",
         propertyName: propertyName(property),
         status: "decision required",
+        actionLabel: "Build package",
+        to: `/properties/${property.property.id}/package`,
       });
     }
     for (const document of property.documents.filter((entry) => entry.data.status === "expired" || entry.data.status === "revoked")) {
@@ -148,11 +162,73 @@ function buildAttention(
         summary: document.data.title,
         propertyName: propertyName(property),
         status: document.data.status,
+        actionLabel: "Review documents",
+        to: "/documents",
       });
     }
     return concerns;
   });
   return [...reported, ...propertyConcerns];
+}
+
+// Its own component, not inline JSX in a .map(), because it needs its own
+// useAgentSurface call -- one real surface per property, not the single
+// hardcoded "property index 0 only" surface this replaced. That old
+// version meant Superhost could only ever open the first property's
+// package page, no matter which property a request actually named --
+// confirmed live, it opened an unrelated property's package instead of
+// the one asked for. Every card stays in the DOM at once (this is a
+// scroll-snap carousel), so the model can target any property's link
+// directly and the auto-scroll-into-view step (see driver-gated.ts)
+// brings the right card on screen before clicking it.
+function PackageReceiptCard({ property, propertyIndex }: { property: DashboardProperty; propertyIndex: number }) {
+  const name = propertyName(property);
+  const linkSurface = useAgentSurface(
+    `dashboard-package-link-${property.property.id}`,
+    ["focus", "click", "scroll_to"] as AgentAction[],
+    property.activePackage ? `Open the package page for ${name}` : `Build a package for ${name} (no package on file yet)`,
+  );
+
+  return (
+    <article className="owner-package-receipt" data-empty={!property.activePackage} data-property-index={propertyIndex}>
+      <div className="owner-package-receipt-brand">
+        <span>COMFORT CURATORS</span>
+        <b aria-hidden="true">CC</b>
+      </div>
+      <div className="owner-package-receipt-meta">
+        <span>PROPERTY OF RECORD</span>
+        <small>{property.activePackage ? `ACTIVE / V${property.activePackage.data.version_number}` : "PACKAGE / NOT SET"}</small>
+      </div>
+      <h3>{name}</h3>
+      <address>{shortAddress(property)}</address>
+      {property.activePackage ? (
+        <>
+          <dl className="owner-package-lines">
+            <div><dt>Recurring supply plan</dt><dd><Money value={property.activePackage.data.monthly_cost_minor_units} currency={property.activePackage.data.currency} /></dd></div>
+            <div><dt>Expected consumption</dt><dd>{property.activePackage.data.monthly_consumption_units} units / month</dd></div>
+            {property.activePackage.data.setup_cost_minor_units > 0 && (
+              <div><dt>One-time setup</dt><dd><Money value={property.activePackage.data.setup_cost_minor_units} currency={property.activePackage.data.currency} /></dd></div>
+            )}
+          </dl>
+          <div className="owner-package-total">
+            <span>Monthly total</span>
+            <Money className="owner-package-cost" value={property.activePackage.data.monthly_cost_minor_units} currency={property.activePackage.data.currency} />
+          </div>
+          <div className="owner-package-barcode" aria-hidden="true" />
+          <footer>
+            <small>SERVER PRICED · RECURRING MONTHLY</small>
+            <Link ref={linkSurface.ref} to={`/properties/${property.property.id}/package`}>MANAGE PACKAGE →</Link>
+          </footer>
+        </>
+      ) : (
+        <div className="owner-package-empty">
+          <strong>No package on file.</strong>
+          <p>Curate the property’s recurring supplies and review the monthly bill before activation.</p>
+          <Link ref={linkSurface.ref} to={`/properties/${property.property.id}/package`}>BUILD PACKAGE →</Link>
+        </div>
+      )}
+    </article>
+  );
 }
 
 function DashboardSkeleton() {
@@ -166,7 +242,6 @@ function DashboardSkeleton() {
 export default function Dashboard() {
   const location = useLocation();
   const isActive = (to: string) => location.pathname === to || location.pathname.startsWith(`${to}/`);
-  const packageLinkSurface = useAgentSurface("dashboard-package-link", ["focus", "click", "scroll_to"] as AgentAction[], "Open the property package page");
   const retrySurface = useAgentSurface("dashboard-retry", ["focus", "click"] as AgentAction[], "Retry loading the owner dashboard");
   const dashboardQuery = useQuery({ queryKey: ["owner", "dashboard"], queryFn: getOwnerDashboard });
   const dashboard = dashboardQuery.data;
@@ -179,15 +254,40 @@ export default function Dashboard() {
   );
   const firstPropertyId = dashboard?.properties[0]?.property.id;
   const selectedProperty = dashboard?.properties[selectedPropertyIndex] ?? dashboard?.properties[0] ?? null;
+  const pendingCartCount = useSyncExternalStore(
+    subscribePendingPurchase,
+    () => dashboard?.properties.filter((property) => getPendingPurchase(property.property.id).length > 0).length ?? 0,
+    () => 0,
+  );
 
+  // Re-introduced deliberately, after having been deliberately removed --
+  // see git history / the old version of this comment for the original
+  // incident: syncing on every receipt-carousel scroll position caused a
+  // request naming one property to get acted on against whichever
+  // *different* property the carousel happened to be showing mid-scroll,
+  // because the whole conversation was scoped to that one property before
+  // the request was ever read.
+  //
+  // The request here is narrower and explicit: syncing specifically to
+  // the Property cabinet selection (a real click on a file card, or the
+  // prev/next buttons -- see propertyIndex-select below), not to ambient
+  // scroll position, and debounced so a fling through several cards
+  // doesn't commit scope to each one in passing -- only the one it
+  // actually settles on, after a short pause. selectedPropertyIndex is
+  // still shared with the receipt carousel's own scroll-linked updates
+  // (handlePackageScroll below), so scrolling that carousel also re-scopes
+  // Superhost now; that's an accepted tradeoff for "the dashboard always
+  // knows which property you're looking at" over "the dashboard never
+  // locks scope by itself" -- revisit if the flicker risk resurfaces.
   useEffect(() => {
-    if (selectedProperty) {
-      setCurrentProperty({ id: selectedProperty.property.id, label: propertyName(selectedProperty) });
-    } else {
-      clearCurrentProperty();
-    }
-    return clearCurrentProperty;
+    if (!selectedProperty) return undefined;
+    const id = selectedProperty.property.id;
+    const label = propertyName(selectedProperty);
+    const timer = window.setTimeout(() => setCurrentProperty({ id, label }), 250);
+    return () => window.clearTimeout(timer);
   }, [selectedProperty]);
+
+  useEffect(() => clearCurrentProperty, []);
 
   useEffect(() => {
     if (dashboard && selectedPropertyIndex >= dashboard.properties.length) setSelectedPropertyIndex(0);
@@ -218,6 +318,17 @@ export default function Dashboard() {
     .flatMap((property) => property.documents.map((document) => ({ document, property })))
     .sort((left, right) => right.document.data.created_at.localeCompare(left.document.data.created_at));
   const recentDocuments = allDocuments.slice(0, 5);
+  const activePackages = dashboard?.properties.filter((property) => property.activePackage).length ?? 0;
+  const proposedApprovals = dashboard?.properties.reduce(
+    (count, property) => count + property.tickets.filter((ticket) => ticket.data.status === "proposed").length,
+    0,
+  ) ?? 0;
+  const decisionCount = attention.length + pendingCartCount + proposedApprovals;
+  const monthlyPackageTotal = dashboard?.properties.reduce(
+    (total, property) => total + (property.activePackage?.data.monthly_cost_minor_units ?? 0),
+    0,
+  ) ?? 0;
+  const monthlyPackageCurrency = dashboard?.properties.find((property) => property.activePackage)?.activePackage?.data.currency ?? "INR";
 
   return (
     <OwnerGate>
@@ -241,12 +352,17 @@ export default function Dashboard() {
         </header>
 
         <section className="owner-intro" aria-labelledby="dashboard-title">
-          <p>PORTFOLIO / LUCKNOW</p>
-          <h1 id="dashboard-title">Is everything fine?</h1>
-          <div>
-            <strong>{dashboard ? `${dashboard.properties.length} MANAGED ${dashboard.properties.length === 1 ? "PROPERTY" : "PROPERTIES"}` : "QUIETLY CHECKING"}</strong>
-            <span>Exceptions first. Routine work stays out of the way.</span>
+          <div className="owner-intro-heading">
+            <p>PORTFOLIO / LUCKNOW</p>
+            <h1 id="dashboard-title">Is everything fine?</h1>
+            <span>{dashboard ? (decisionCount === 0 ? "Everything is running quietly." : `${decisionCount} ${decisionCount === 1 ? "decision needs" : "decisions need"} your attention.`) : "Quietly checking your portfolio."}</span>
           </div>
+          <dl className="owner-portfolio-pulse" aria-label="Portfolio status">
+            <div><dt>Managed</dt><dd>{dashboard?.properties.length ?? "—"}</dd><small>PROPERTIES</small></div>
+            <div data-alert={decisionCount > 0}><dt>Decisions</dt><dd>{dashboard ? decisionCount : "—"}</dd><small>{decisionCount === 0 ? "ALL QUIET" : "OPEN NOW"}</small></div>
+            <div><dt>Next 7 days</dt><dd>{dashboard ? upcoming.length : "—"}</dd><small>COMMITTED</small></div>
+            <div><dt>Monthly plan</dt><dd>{dashboard ? <Money value={monthlyPackageTotal} currency={monthlyPackageCurrency} /> : "—"}</dd><small>{activePackages} ACTIVE</small></div>
+          </dl>
         </section>
 
         {dashboardQuery.isLoading ? <DashboardSkeleton /> : dashboardQuery.isError || !dashboard ? (
@@ -264,57 +380,40 @@ export default function Dashboard() {
         ) : (
           <>
             <OwnerTaskTerminal property={selectedProperty ?? dashboard.properties[0]} />
-            <OwnerPropertyOverview properties={dashboard.properties} selectedIndex={selectedPropertyIndex} onSelect={setSelectedPropertyIndex} />
-            <section className="owner-section owner-properties" aria-labelledby="properties-title">
-              <header><span>02</span><h2 id="properties-title">Your properties</h2><small>STATE + READINESS</small></header>
-              <div className="owner-property-grid">
-                {dashboard.properties.map((property) => {
-                  const next = upcoming.find((entry) => entry.property.property.id === property.property.id);
-                  const image = getPropertyImage(property.property.data.service_address);
-                  return (
-                    <article className="owner-property" key={property.property.id}>
-                      <div className="owner-property-heading">
-                        {image && (
-                          <img
-                            className="owner-property-photo"
-                            src={image.src}
-                            alt={image.alt}
-                            loading="lazy"
-                          />
-                        )}
-                        <p>{shortAddress(property)}</p>
-                        <h3>{propertyName(property)}</h3>
-                        <span>{property.property.data.state.replaceAll("_", " ")}</span>
-                      </div>
-                      <div className="owner-readiness">
-                        <strong>READINESS {readinessScore(property)} / 3</strong>
-                        <ul>
-                          {Object.entries(property.property.data.readiness).map(([key, ready]) => (
-                            <li key={key} data-ready={ready}><span>{READINESS_LABELS[key as keyof typeof READINESS_LABELS]}</span><b>{ready ? "READY" : "INCOMPLETE"}</b></li>
-                          ))}
-                        </ul>
-                      </div>
-                      <div className="owner-next-work">
-                        <span>NEXT OWNER-VISIBLE WORK</span>
-                        {next ? <><strong>{next.ticket.data.type.replaceAll("_", " ")}</strong><time>{ticketWindow(next.ticket)}</time></> : <strong>Nothing scheduled this week.</strong>}
-                      </div>
-                      <div className="owner-property-links">
-                        <Link to={`/properties/${property.property.id}`}>PROPERTY DETAILS →</Link>
-                        <Link ref={property === dashboard.properties[0] ? packageLinkSurface.ref : undefined} to={`/properties/${property.property.id}/package`}>VIEW PACKAGE →</Link>
-                      </div>
-                    </article>
-                  );
-                })}
+
+            <section className="owner-section owner-property-workspace" aria-labelledby="properties-title">
+              <header><span>02</span><h2 id="properties-title">Property cabinet</h2><small>{String(selectedPropertyIndex + 1).padStart(2, "0")} / {String(dashboard.properties.length).padStart(2, "0")}</small></header>
+              <div className="owner-property-cabinet">
+                <div className="owner-property-tabs" aria-label="Choose a property">
+                  {dashboard.properties.map((property, propertyIndex) => {
+                    const image = getPropertyImage(property.property.data.service_address);
+                    return (
+                      <button
+                        type="button"
+                        aria-pressed={propertyIndex === selectedPropertyIndex}
+                        aria-controls="owner-overview-title"
+                        data-selected={propertyIndex === selectedPropertyIndex}
+                        key={property.property.id}
+                        onClick={() => setSelectedPropertyIndex(propertyIndex)}
+                      >
+                        <span>FILE {String(propertyIndex + 1).padStart(2, "0")}</span>
+                        {image ? <img src={image.src} alt="" loading="lazy" /> : <i aria-hidden="true" />}
+                        <div><strong>{propertyName(property)}</strong><small>{shortAddress(property)}</small><b>{readinessScore(property)}/3 READY · {property.property.data.state.replaceAll("_", " ")}</b></div>
+                      </button>
+                    );
+                  })}
+                </div>
+                <OwnerPropertyOverview properties={dashboard.properties} selectedIndex={selectedPropertyIndex} />
               </div>
             </section>
 
             <section className="owner-section owner-attention" data-empty={attention.length === 0} aria-labelledby="attention-title" aria-live="polite">
-              <header><span>03</span><h2 id="attention-title">Needs your attention</h2><small>{attention.length === 0 ? "ALL QUIET" : `${attention.length} OPEN`}</small></header>
+              <header><span>03</span><h2 id="attention-title">Manual follow-up</h2><small>{attention.length === 0 ? "ALL QUIET" : `${attention.length} TO REVIEW`}</small></header>
               {attention.length === 0 ? (
-                <div className="owner-attention-empty"><i aria-hidden="true">OK</i><p>No exceptions. We’ll surface anything that needs your decision.</p></div>
+                <div className="owner-attention-empty"><strong>All clear.</strong><p>Nothing needs a manual follow-up.</p></div>
               ) : (
                 <ul className="owner-attention-list">
-                  {attention.map((item) => <li key={item.id}><span>{item.propertyName}</span><strong>{item.label}</strong><p>{item.summary}</p><small>{item.status}</small></li>)}
+                  {attention.map((item) => <li key={item.id}><div><span>{item.propertyName} · {item.status}</span><strong>{item.label}</strong><p>{item.summary}</p></div><Link to={item.to}>{item.actionLabel} →</Link></li>)}
                 </ul>
               )}
             </section>
@@ -343,44 +442,7 @@ export default function Dashboard() {
                 </div>
                 <div className="owner-package-scroll" ref={packageScrollRef} onScroll={handlePackageScroll}>
                   {dashboard.properties.map((property, propertyIndex) => (
-                    <article className="owner-package-receipt" data-empty={!property.activePackage} data-property-index={propertyIndex} key={property.property.id}>
-                      <div className="owner-package-receipt-brand">
-                        <span>COMFORT CURATORS</span>
-                        <b aria-hidden="true">CC</b>
-                      </div>
-                      <div className="owner-package-receipt-meta">
-                        <span>PROPERTY OF RECORD</span>
-                        <small>{property.activePackage ? `ACTIVE / V${property.activePackage.data.version_number}` : "PACKAGE / NOT SET"}</small>
-                      </div>
-                      <h3>{propertyName(property)}</h3>
-                      <address>{shortAddress(property)}</address>
-                      {property.activePackage ? (
-                        <>
-                          <dl className="owner-package-lines">
-                            <div><dt>Recurring supply plan</dt><dd><Money value={property.activePackage.data.monthly_cost_minor_units} currency={property.activePackage.data.currency} /></dd></div>
-                            <div><dt>Expected consumption</dt><dd>{property.activePackage.data.monthly_consumption_units} units / month</dd></div>
-                            {property.activePackage.data.setup_cost_minor_units > 0 && (
-                              <div><dt>One-time setup</dt><dd><Money value={property.activePackage.data.setup_cost_minor_units} currency={property.activePackage.data.currency} /></dd></div>
-                            )}
-                          </dl>
-                          <div className="owner-package-total">
-                            <span>Monthly total</span>
-                            <Money className="owner-package-cost" value={property.activePackage.data.monthly_cost_minor_units} currency={property.activePackage.data.currency} />
-                          </div>
-                          <div className="owner-package-barcode" aria-hidden="true" />
-                          <footer>
-                            <small>SERVER PRICED · RECURRING MONTHLY</small>
-                            <Link to={`/properties/${property.property.id}/package`}>REVIEW BILL →</Link>
-                          </footer>
-                        </>
-                      ) : (
-                        <div className="owner-package-empty">
-                          <strong>No package on file.</strong>
-                          <p>Curate the property’s recurring supplies and review the monthly bill before activation.</p>
-                          <Link to={`/properties/${property.property.id}/package`}>BUILD PACKAGE →</Link>
-                        </div>
-                      )}
-                    </article>
+                    <PackageReceiptCard key={property.property.id} property={property} propertyIndex={propertyIndex} />
                   ))}
                 </div>
               </section>

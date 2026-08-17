@@ -598,10 +598,31 @@ func (s *ReportingStore) CountTicketsByStatus(ctx context.Context, tenantID, pro
 	return count, nil
 }
 
-// CountCompletedChecklistItems counts checklist items with status 'completed'.
+// CountCompletedChecklistItems counts checklist items with status
+// 'completed'. ticket_checklist_items carries no property_id of its own --
+// it is scoped to a property only through its parent ticket -- so this
+// joins tickets directly rather than reusing scopeArgs, which assumes a
+// flat property_id column on the target table.
 func (s *ReportingStore) CountCompletedChecklistItems(ctx context.Context, tenantID, propertyID string, start, end *time.Time) (int, error) {
-	filter, args := scopeArgs(tenantID, propertyID, start, end)
-	query := `SELECT COUNT(*) FROM ticket_checklist_items WHERE` + filter + ` AND status = 'completed'`
+	args := []any{tenantID}
+	query := `
+		SELECT COUNT(*)
+		FROM ticket_checklist_items tci
+		JOIN tickets t ON t.id = tci.ticket_id AND t.tenant_id = tci.tenant_id
+		WHERE tci.tenant_id = $1 AND tci.status = 'completed'
+	`
+	if propertyID != "" {
+		args = append(args, propertyID)
+		query += fmt.Sprintf(" AND t.property_id = $%d", len(args))
+	}
+	if start != nil {
+		args = append(args, *start)
+		query += fmt.Sprintf(" AND tci.created_at >= $%d", len(args))
+	}
+	if end != nil {
+		args = append(args, *end)
+		query += fmt.Sprintf(" AND tci.created_at < $%d", len(args))
+	}
 	var count int
 	err := s.pool.QueryRow(ctx, query, args...).Scan(&count)
 	if err != nil {

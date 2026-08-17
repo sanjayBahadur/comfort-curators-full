@@ -112,6 +112,14 @@ export default function Modal({
         tabIndex={-1}
         onKeyDown={handleKeyDown}
         onAnimationEnd={handleAnimationEnd}
+        // Same bug as the Superhost terminal and package cart column: this
+        // has real overflow-y: auto + max-height, but Lenis hijacks its
+        // wheel events unless it's opted out via data-lenis-prevent (see
+        // smooth-scroll.tsx's prevent callback). Every popup built on this
+        // shared Modal -- including "YOUR PACKAGE", the full cart view --
+        // needs this, not just the callers that happened to add it
+        // themselves elsewhere.
+        data-lenis-prevent
       >
         {/* Callers should show at most one popup per session. */}
         <p className="modal-index">{label}</p>

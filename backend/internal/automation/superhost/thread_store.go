@@ -91,11 +91,12 @@ func (s *ThreadStore) CreateThread(ctx context.Context, tenantID, propertyID, ac
 		"type": "system_kickoff",
 		"content": "A new session just started. Look at the real account context you were given " +
 			"(open tickets, low stock, pending approvals, upcoming reservations, prior account_tasks -- " +
-			"whatever is actually there) and suggest 2-4 concrete, specific things you could help with " +
-			"right now. Ground every suggestion in something real from the context -- never invent a " +
-			"generic to-do. If nothing genuinely needs attention, say so plainly instead of manufacturing " +
-			"busywork. Close by inviting them to ask for anything else, and mention you can remember a " +
-			"follow-up as a task (log_task) if it's not something to act on immediately.",
+			"whatever is actually there) and name the single most useful thing you notice, in one short " +
+			"sentence -- not a numbered list, not a paragraph per item, no explanation of your reasoning " +
+			"yet. If a second thing is genuinely just as pressing, a second short sentence is fine; stop " +
+			"there. If nothing genuinely needs attention, say so plainly in one sentence instead of " +
+			"manufacturing busywork. Close with a short, plain invitation to ask for more detail or " +
+			"anything else -- not a menu of what you could do.",
 	}
 	kickoffRaw, err := json.Marshal(kickoffInput)
 	if err != nil {

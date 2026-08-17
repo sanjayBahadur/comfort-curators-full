@@ -107,6 +107,18 @@ const parseList = (value: string | null) =>
 const clampInteger = (value: number, minimum: number, maximum = 999) =>
   Math.min(maximum, Math.max(minimum, Number.isFinite(value) ? Math.round(value) : minimum));
 
+// UI-only default for now: decor and furniture are one-time buys, not a
+// recurring monthly cost -- nobody re-buys a side table or a wall hanging
+// every month. Setting monthlyUse to 0 for these categories at add-time
+// only affects MonthlyCostMinorUnits (= consumption x price, computed
+// server-side in catalog/service.go); SetupCostMinorUnits is quantity x
+// price, entirely separate, so this cannot change the number Superhost
+// treats as the budget ceiling. Human-editable afterward, same as any
+// other line -- this only sets the starting default.
+const NO_DEFAULT_MONTHLY_RECURRENCE = new Set(["decor", "furniture"]);
+const defaultMonthlyUse = (item: CatalogResource) =>
+  NO_DEFAULT_MONTHLY_RECURRENCE.has(item.data.category.toLowerCase()) ? 0 : 1;
+
 function DropArea({
   id,
   className,
@@ -185,7 +197,17 @@ function ProductCard({
   onOpen: (item: CatalogResource, trigger: HTMLElement) => void;
   onContextMenu: (event: ReactMouseEvent<HTMLElement>, item: CatalogResource) => void;
 }) {
-  const addSurface = useAgentSurface(`shop-catalog-add-${item.id}`, ["click"] as AgentAction[], `Drag ${item.data.name} into the package cart`);
+  // Price + category are inlined into the label itself, not just shown
+  // visually -- this is literally the only per-item data Superhost ever
+  // receives (see sendSuperhostMessage's uiSurfaces: {id, label, actions}
+  // only, no separate price field). Without this, a stated budget like
+  // "under 3000 INR" was unenforceable in practice: the model had no way
+  // to know what anything cost while deciding what to add.
+  const addSurface = useAgentSurface(
+    `shop-catalog-add-${item.id}`,
+    ["click"] as AgentAction[],
+    `Drag ${item.data.name} (${formatMoney(item.data.owner_price_minor_units, item.data.owner_price_currency)} each, category: ${item.data.category}) into the package cart`,
+  );
   const { listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: `catalog:${item.id}`,
     data: { kind: "catalog", item },
@@ -266,8 +288,9 @@ function CartRow({
   onChange: (patch: Partial<Pick<CartLine, "quantity" | "monthlyUse">>) => void;
   onRemove: () => void;
 }) {
-  const removeSurface = useAgentSurface(`shop-cart-remove-${line.item.id}`, ["click"] as AgentAction[], `Remove ${line.item.data.name} from the package`);
-  const quantitySurface = useAgentSurface(`shop-cart-qty-${line.item.id}`, ["focus", "set"] as AgentAction[], `Set quantity for ${line.item.data.name}`);
+  const unitPriceLabel = `${formatMoney(line.item.data.owner_price_minor_units, line.item.data.owner_price_currency)} each, category: ${line.item.data.category}`;
+  const removeSurface = useAgentSurface(`shop-cart-remove-${line.item.id}`, ["click"] as AgentAction[], `Remove ${line.item.data.name} (${unitPriceLabel}, currently ${line.quantity} in cart) from the package`);
+  const quantitySurface = useAgentSurface(`shop-cart-qty-${line.item.id}`, ["focus", "set"] as AgentAction[], `Set quantity for ${line.item.data.name} (${unitPriceLabel}, currently ${line.quantity})`);
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: `cart:${line.item.id}`,
     data: { kind: "cart", item: line.item },
@@ -335,6 +358,133 @@ function CartRow({
   );
 }
 
+// The big-picture cart view (see CartModal below) reuses this row's exact
+// markup and CSS classes -- same theme, same controls -- but is its own
+// component rather than a second render of CartRow. CartRow calls
+// useAgentSurface with an id keyed only by the item (shop-cart-remove-X,
+// shop-cart-qty-X); mounting two live instances of that same id at once
+// (one in the sidebar, one in an open modal) would make the second one's
+// unmount silently unregister the surface the first is still using. This
+// is purely presentational for a person reviewing the cart, so it never
+// needs an agent surface of its own -- Superhost already has the real
+// ones in the sidebar.
+function CartModalRow({
+  line,
+  onChange,
+  onRemove,
+}: {
+  line: CartLine;
+  onChange: (patch: Partial<Pick<CartLine, "quantity" | "monthlyUse">>) => void;
+  onRemove: () => void;
+}) {
+  return (
+    <article className="shop-cart-row" role="group" aria-label={`${line.item.data.name} package line`}>
+      <div className="shop-cart-row-heading">
+        {(() => {
+          const photo = getPackageCatalogImage(line.item.data.sku);
+          return photo
+            ? <img className="shop-cart-row-thumb" src={photo.src} alt="" loading="lazy" />
+            : <span className="shop-cart-row-thumb shop-cart-row-thumb--empty" aria-hidden="true" />;
+        })()}
+        <strong>{line.item.data.name}</strong>
+        <button type="button" onClick={onRemove} aria-label={`Remove ${line.item.data.name}`}>×</button>
+      </div>
+      <span className="shop-cart-unit"><Money value={line.item.data.owner_price_minor_units} currency={line.item.data.owner_price_currency} /> EA</span>
+      <div className="shop-cart-control">
+        <span>QTY</span>
+        <button type="button" onClick={() => onChange({ quantity: clampInteger(line.quantity - 1, 1) })} aria-label={`Decrease ${line.item.data.name} quantity`}>−</button>
+        <input
+          aria-label={`Quantity for ${line.item.data.name}`}
+          inputMode="numeric"
+          min="1"
+          type="number"
+          value={line.quantity}
+          onChange={(event) => onChange({ quantity: clampInteger(event.currentTarget.valueAsNumber, 1) })}
+        />
+        <button type="button" onClick={() => onChange({ quantity: clampInteger(line.quantity + 1, 1) })} aria-label={`Increase ${line.item.data.name} quantity`}>+</button>
+      </div>
+      <label className="shop-cart-control shop-monthly-control">
+        <span>MONTHLY USE</span>
+        <input
+          aria-label={`Monthly use for ${line.item.data.name}`}
+          inputMode="numeric"
+          min="0"
+          type="number"
+          value={line.monthlyUse}
+          onChange={(event) => onChange({ monthlyUse: clampInteger(event.currentTarget.valueAsNumber, 0) })}
+        />
+      </label>
+    </article>
+  );
+}
+
+function CartModal({
+  open,
+  onClose,
+  cart,
+  currency,
+  monthlyTotalMinorUnits,
+  onChangeLine,
+  onRemoveLine,
+  onClearAll,
+}: {
+  open: boolean;
+  onClose: () => void;
+  cart: CartLine[];
+  currency: string;
+  monthlyTotalMinorUnits: number | null;
+  onChangeLine: (itemId: string, patch: Partial<Pick<CartLine, "quantity" | "monthlyUse">>) => void;
+  onRemoveLine: (itemId: string) => void;
+  onClearAll: () => void;
+}) {
+  const totalQuantity = cart.reduce((total, line) => total + line.quantity, 0);
+  // Resets naturally on its own -- a fresh boolean each time the modal
+  // mounts, no need to wire this into the parent's own state.
+  const [confirmClear, setConfirmClear] = useState(false);
+
+  return (
+    <Modal
+      open={open}
+      onClose={() => { setConfirmClear(false); onClose(); }}
+      title="Your package"
+      label={`CART / ${totalQuantity} ITEM${totalQuantity === 1 ? "" : "S"}`}
+      className="shop-cart-modal"
+    >
+      {cart.length === 0 ? (
+        <div className="shop-empty-cart"><strong>empty.</strong><em>for now.</em></div>
+      ) : (
+        <>
+          <div className="shop-cart-modal-actions">
+            {confirmClear ? (
+              <div className="shop-cart-modal-clear-confirm">
+                CLEAR EVERYTHING?
+                <button type="button" onClick={() => { onClearAll(); setConfirmClear(false); }}>OK</button>
+                <button type="button" onClick={() => setConfirmClear(false)}>—</button>
+              </div>
+            ) : (
+              <button type="button" onClick={() => setConfirmClear(true)}>CLEAR ALL ×</button>
+            )}
+          </div>
+          <div className="shop-cart-modal-rows">
+            {cart.map((line) => (
+              <CartModalRow
+                key={line.item.id}
+                line={line}
+                onChange={(patch) => onChangeLine(line.item.id, patch)}
+                onRemove={() => onRemoveLine(line.item.id)}
+              />
+            ))}
+          </div>
+          <div className="shop-cart-modal-total">
+            <span>MONTHLY TOTAL</span>
+            <strong>{monthlyTotalMinorUnits !== null ? <Money value={monthlyTotalMinorUnits} currency={currency} /> : "—"}</strong>
+          </div>
+        </>
+      )}
+    </Modal>
+  );
+}
+
 function QuickView({
   item,
   onClose,
@@ -387,6 +537,7 @@ export default function PackageShop() {
   const [justAddedId, setJustAddedId] = useState<string | null>(null);
   const [filterOpen, setFilterOpen] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
+  const [cartModalOpen, setCartModalOpen] = useState(false);
   const [offline, setOffline] = useState(() => !navigator.onLine);
   const [reducedMotion, setReducedMotion] = useState(() => window.matchMedia("(prefers-reduced-motion: reduce)").matches);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
@@ -685,7 +836,7 @@ export default function PackageShop() {
       const existing = current.find((line) => line.item.id === item.id);
       if (existing) return current.map((line) => line.item.id === item.id ? { ...line, quantity: line.quantity + 1 } : line);
       if (current.length === 0) firstDropPending.current = true;
-      return [...current, { item, quantity: 1, monthlyUse: 1 }];
+      return [...current, { item, quantity: 1, monthlyUse: defaultMonthlyUse(item) }];
     });
   }
 
@@ -748,6 +899,24 @@ export default function PackageShop() {
   const cartCount = cart.reduce((total, line) => total + line.quantity, 0);
   const canActivate = cart.length > 0 && !settling && !activating && savedSignature === signature && packageVersion?.data.status === "draft";
   const displayCurrency = costs?.currency ?? "INR";
+  // Read-only running total, surfaced the same way per-item prices are
+  // (see ProductCard's addSurface above): the label itself IS the data --
+  // there is no separate numeric field in what Superhost receives. This
+  // is what lets it check its own running total against a stated budget
+  // ("under 3000 INR") as it adds items, instead of adding blind.
+  // SETUP cost leads and is named as the budget figure explicitly -- a
+  // stated budget ("under 2000 INR") is checked against this number, never
+  // the monthly one. Confirmed live: a cart landed over budget on setup
+  // while its monthly total was comfortably under it, consistent with the
+  // two getting mixed up when they were presented as two same-weight
+  // numbers side by side.
+  const cartTotalSurface = useAgentSurface(
+    "shop-cart-running-total",
+    ["focus"] as AgentAction[],
+    costs
+      ? `Package cart running total so far -- SETUP COST (this is the number a stated budget applies to): ${formatMoney(costs.setup_cost_minor_units, displayCurrency)}. Separately, monthly recurring cost (not the budget figure): ${formatMoney(costs.monthly_cost_minor_units, displayCurrency)}. ${cartCount} item${cartCount === 1 ? "" : "s"} total.`
+      : "Package cart is currently empty: 0 setup cost (the budget figure), 0 monthly cost, 0 items.",
+  );
 
   return (
     <DndContext collisionDetection={pointerWithin} sensors={sensors} onDragStart={handleDragStart} onDragCancel={() => setActiveDrag(null)} onDragEnd={handleDragEnd}>
@@ -755,7 +924,9 @@ export default function PackageShop() {
         <header className="shop-header">
           <span>01 / INVENTORY</span>
           <strong>{title}</strong>
-          <span>⊹ REGISTRATION ⊹</span>
+          <button type="button" className="shop-cart-summary-button" onClick={() => setCartModalOpen(true)} disabled={cart.length === 0}>
+            CART / {cartCount} ⤢
+          </button>
         </header>
 
         <aside className="shop-filter-column" data-open={filterOpen} data-lenis-prevent aria-label="Catalog filters">
@@ -808,6 +979,7 @@ export default function PackageShop() {
         <DropArea id="grid-zone" className="shop-results" label="Catalog results">
           <div className="shop-mobile-tools">
             <button type="button" aria-expanded={filterOpen} onClick={() => setFilterOpen(true)}>FILTERS +</button>
+            <button type="button" onClick={() => setCartModalOpen(true)} disabled={cart.length === 0}>CART / {cartCount}</button>
             <Link to="/login">ACCESS DESK</Link>
           </div>
           <div className="shop-result-count">
@@ -904,46 +1076,48 @@ export default function PackageShop() {
               />
             ))}
           </div>
-          <PaymentBoundary boundaryId={`package-checkout-${propertyId}`}>
-          <section className="shop-costs" data-settling={settling} aria-live="polite">
-            <div><span>SETUP</span><strong>{costs ? <Money value={costs.setup_cost_minor_units} currency={displayCurrency} /> : "—"}</strong></div>
-            <div className="shop-monthly-total" data-marker={markerVisible}><span>MONTHLY</span><strong>{costs ? <Money value={costs.monthly_cost_minor_units} currency={displayCurrency} /> : "—"}</strong><svg viewBox="0 0 180 64" aria-hidden="true"><path d="M10 34C15 8 156 2 170 29C181 52 32 66 11 43C4 35 9 23 25 15" /></svg></div>
-            <em>recalculated by our warehouse</em>
-          </section>
-          <details className="shop-rules">
-            <summary>03 / RULES</summary>
-            <fieldset>
-              <legend>SUBSTITUTION POLICY</legend>
-              {(["owner_approval", "automatic", "restricted"] as PackagePolicy[]).map((value) => (
-                <label key={value} data-selected={policy === value}><input type="radio" name="policy" value={value} checked={policy === value} onChange={() => setPolicy(value)} /><span>{value.replaceAll("_", " ")}</span></label>
-              ))}
-            </fieldset>
-            <label className="shop-toggle"><input type="checkbox" checked={approvePriceIncrease} onChange={(event) => setApprovePriceIncrease(event.currentTarget.checked)} /><span>APPROVE PRICE INCREASES</span></label>
-            <label className="shop-toggle"><input type="checkbox" checked={approveNewSku} onChange={(event) => setApproveNewSku(event.currentTarget.checked)} /><span>APPROVE NEW SKUS</span></label>
-            <label className="shop-budget"><span>MONTHLY BUDGET LIMIT / INR</span><input type="number" min="0" inputMode="numeric" value={monthlyBudget} placeholder="OPTIONAL" onChange={(event) => setMonthlyBudget(event.currentTarget.value)} /><small>DISPLAY LIMIT · NOT ENFORCED BY BACKEND</small></label>
-          </details>
-          {controlSession.state !== "granted" && (
-            <PaymentBoundaryButton
-              className="shop-activate"
-              type="button"
-              disabled={!canActivate}
-              onClick={() => void activate()}
-            >
-              {activating ? "ACTIVATING" : settling ? "SETTLING" : packageVersion?.data.status === "active" ? "ACTIVE" : "REVIEW & ACTIVATE"}
-            </PaymentBoundaryButton>
-          )}
-          </PaymentBoundary>
-          {controlSession.state === "granted" && (
-            <PaymentBoundaryTriggerButton
-              className="shop-activate"
-              type="button"
-              boundaryId={`package-checkout-${propertyId}`}
-              agentId={`package-payment-handoff-${propertyId}`}
-              agentLabel="Finish the package draft and request owner review"
-            >
-              REVIEW & ACTIVATE
-            </PaymentBoundaryTriggerButton>
-          )}
+          <div className="shop-cart-checkout">
+            <PaymentBoundary boundaryId={`package-checkout-${propertyId}`}>
+              <section className="shop-costs" ref={cartTotalSurface.ref} data-settling={settling} aria-live="polite">
+                <div><span>SETUP</span><strong>{costs ? <Money value={costs.setup_cost_minor_units} currency={displayCurrency} /> : "—"}</strong></div>
+                <div className="shop-monthly-total" data-marker={markerVisible}><span>MONTHLY</span><strong>{costs ? <Money value={costs.monthly_cost_minor_units} currency={displayCurrency} /> : "—"}</strong><svg viewBox="0 0 180 64" aria-hidden="true"><path d="M10 34C15 8 156 2 170 29C181 52 32 66 11 43C4 35 9 23 25 15" /></svg></div>
+                <em>recalculated by our warehouse</em>
+              </section>
+              <details className="shop-rules">
+                <summary>03 / RULES</summary>
+                <fieldset>
+                  <legend>SUBSTITUTION POLICY</legend>
+                  {(["owner_approval", "automatic", "restricted"] as PackagePolicy[]).map((value) => (
+                    <label key={value} data-selected={policy === value}><input type="radio" name="policy" value={value} checked={policy === value} onChange={() => setPolicy(value)} /><span>{value.replaceAll("_", " ")}</span></label>
+                  ))}
+                </fieldset>
+                <label className="shop-toggle"><input type="checkbox" checked={approvePriceIncrease} onChange={(event) => setApprovePriceIncrease(event.currentTarget.checked)} /><span>APPROVE PRICE INCREASES</span></label>
+                <label className="shop-toggle"><input type="checkbox" checked={approveNewSku} onChange={(event) => setApproveNewSku(event.currentTarget.checked)} /><span>APPROVE NEW SKUS</span></label>
+                <label className="shop-budget"><span>MONTHLY BUDGET LIMIT / INR</span><input type="number" min="0" inputMode="numeric" value={monthlyBudget} placeholder="OPTIONAL" onChange={(event) => setMonthlyBudget(event.currentTarget.value)} /><small>DISPLAY LIMIT · NOT ENFORCED BY BACKEND</small></label>
+              </details>
+              {controlSession.state !== "granted" && (
+                <PaymentBoundaryButton
+                  className="shop-activate"
+                  type="button"
+                  disabled={!canActivate}
+                  onClick={() => void activate()}
+                >
+                  {activating ? "ACTIVATING" : settling ? "SETTLING" : packageVersion?.data.status === "active" ? "ACTIVE" : "REVIEW & ACTIVATE"}
+                </PaymentBoundaryButton>
+              )}
+            </PaymentBoundary>
+            {controlSession.state === "granted" && (
+              <PaymentBoundaryTriggerButton
+                className="shop-activate"
+                type="button"
+                boundaryId={`package-checkout-${propertyId}`}
+                agentId={`package-payment-handoff-${propertyId}`}
+                agentLabel="Finish the package draft and request owner review"
+              >
+                REVIEW & ACTIVATE
+              </PaymentBoundaryTriggerButton>
+            )}
+          </div>
         </DropArea>
 
         <MobileCartBar
@@ -987,6 +1161,16 @@ export default function PackageShop() {
         </div>
       )}
        <QuickView item={quickView} onClose={() => setQuickView(null)} />
+      <CartModal
+        open={cartModalOpen}
+        onClose={() => setCartModalOpen(false)}
+        cart={cart}
+        currency={displayCurrency}
+        monthlyTotalMinorUnits={costs?.monthly_cost_minor_units ?? null}
+        onChangeLine={(itemId, patch) => setCart((current) => current.map((entry) => entry.item.id === itemId ? { ...entry, ...patch } : entry))}
+        onRemoveLine={removeFromCart}
+        onClearAll={() => setCart([])}
+      />
     </DndContext>
   );
 }

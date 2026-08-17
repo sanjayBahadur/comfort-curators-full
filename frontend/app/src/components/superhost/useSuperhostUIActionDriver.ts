@@ -44,6 +44,26 @@ export function useSuperhostUIActionDriver(events: SuperhostStreamEvent[], drive
   // may touch the browser. Previously every drawer remount replayed all old
   // PolicyAllowed events, producing repeated dashboard clicks and a wall of
   // misleading `not_granted` failures.
+  //
+  // That id-set baseline only protects events already present in `events` at
+  // the moment this baseline is taken. It does NOT protect a thread that
+  // wasn't cached in this browser yet: readCache() returns [] on a genuine
+  // cache miss, so the baseline is empty, and the thread's real server-side
+  // backlog (which can be a long, heavily-used thread's entire history)
+  // then streams in afterward as if brand new -- every one of those old
+  // PolicyAllowed UI-tool events gets *actually re-executed*, for real,
+  // against a session that (correctly) has no control granted yet on a
+  // fresh page load. Confirmed live: opening Superhost fresh on a
+  // long-lived thread showed a wall of `not_granted` failures as the very
+  // first thing, before the person had done anything at all.
+  //
+  // The wall-clock cutoff below closes that gap: anything that happened
+  // before this driver mounted is history, full stop, regardless of
+  // whether it happened to already be cached or is only now streaming in
+  // for the first time. Comparing occurred_at (server time) against
+  // Date.now() (client time) assumes clocks that are close enough --
+  // true for this stack (client and server both run on localhost).
+  const mountCutoffRef = useRef(Date.now());
   const driverKeyRef = useRef(driverKey);
   const processedRef = useRef<Set<string>>(new Set(events.map((event) => event.event_id)));
   const queueRef = useRef<Map<string, QueuedArgs[]>>(new Map());
@@ -53,6 +73,7 @@ export function useSuperhostUIActionDriver(events: SuperhostStreamEvent[], drive
 
   if (driverKeyRef.current !== driverKey) {
     driverKeyRef.current = driverKey;
+    mountCutoffRef.current = Date.now();
     processedRef.current = new Set(events.map((event) => event.event_id));
     queueRef.current.clear();
     chainRef.current = Promise.resolve();
@@ -74,10 +95,21 @@ export function useSuperhostUIActionDriver(events: SuperhostStreamEvent[], drive
     const queue = queueRef.current;
     const processed = processedRef.current;
     const gatedRun = gatedRunRef.current;
+    const cutoff = mountCutoffRef.current;
     const newActions: Array<{ eventId: string; toolName: string; intent: AgentIntent }> = [];
 
     for (const event of events) {
       if (processed.has(event.event_id)) continue;
+      // Backlog arriving late (see mountCutoffRef above): mark it seen so
+      // it's never reconsidered, but never let it queue or execute a real
+      // browser action -- the ToolCallProposed/PolicyAllowed pairing logic
+      // below already tolerates an orphaned entry on either side of a
+      // skipped pair (an empty queue.get() on the paired event just
+      // continues harmlessly), so skipping both consistently here is safe.
+      if (Date.parse(event.occurred_at) <= cutoff) {
+        processed.add(event.event_id);
+        continue;
+      }
       processed.add(event.event_id);
 
       const edata = event.event_data && typeof event.event_data === "object"

@@ -63,7 +63,8 @@ func (e *superhostToolExecutor) ExecuteApproved(ctx context.Context, run *automa
 	}
 
 	var args struct {
-		Reason string `json:"reason"`
+		Reason     string `json:"reason"`
+		PropertyID string `json:"property_id"`
 	}
 	_ = json.Unmarshal(arguments, &args)
 	reason := args.Reason
@@ -71,9 +72,26 @@ func (e *superhostToolExecutor) ExecuteApproved(ctx context.Context, run *automa
 		reason = fmt.Sprintf("Superhost-proposed %s, approved by a human reviewer.", toolName)
 	}
 
+	// run.PropertyID is blank for a portfolio-scoped run (the conversation
+	// isn't locked to one property), and every propose_* ticket tool still
+	// requires the model to name one -- see Evaluate's own portfolio-scope
+	// check above, which already verified that property_id belongs to this
+	// run's tenant before the proposal was ever allowed to reach approval.
+	// Without this fallback, CreateTicket silently received an empty
+	// PropertyID for every portfolio-scoped proposal: the human's approval
+	// was real, but the ticket it was supposed to produce was not --
+	// confirmed live, twice, before this fix.
+	propertyID := run.PropertyID
+	if propertyID == "" {
+		propertyID = args.PropertyID
+	}
+	if propertyID == "" {
+		return "", fmt.Errorf("create %s ticket: no property_id available (portfolio-scoped run, tool call did not name one)", ticketType)
+	}
+
 	ticket, err := e.tickets.CreateTicket(ctx, operations.CreateTicketParams{
 		TenantID:   run.TenantID,
-		PropertyID: run.PropertyID,
+		PropertyID: propertyID,
 		Type:       ticketType,
 		Reason:     reason,
 	}, run.ActorID)

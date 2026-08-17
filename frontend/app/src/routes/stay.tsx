@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { Link } from "react-router-dom";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import Money from "../components/money";
@@ -113,14 +114,16 @@ export default function Stay() {
   return (
     <main className="stay-shell">
       <header className="stay-header">
-        {/* This used to have its own "ACCESS DESK" back-to-login link
-            here, in the page's own top-left corner -- exactly where
-            GlobalBackButton (a fixed-position, always-present way out,
-            added later and covering every route including this one) now
-            sits. The two overlapped and rendered as clipped, colliding
-            text. GlobalBackButton already does this link's job. */}
+        {/* The old top-left "ACCESS DESK" link collided with
+            GlobalBackButton, a later, fixed-position, always-present way
+            out that sits in that same corner on every route. Rather than
+            drop the link (every other page keeps one), it now lives on
+            the right, above the property selector, out of that corner. */}
         <div><span className="stay-kicker">GUEST PORTAL / LUCKNOW</span><h1>Stay, considered.</h1><p>A useful place for the things that make a stay easier. Select the property you are visiting to begin.</p></div>
-        <div className="stay-property"><label ref={propertySurface.ref}><span className="stay-label">CURRENT PROPERTY</span><Select id="stay-property-selector-trigger" value={propertyId} onChange={setPropertyId} placeholder="SELECT PROPERTY" options={[{ value: "", label: "SELECT PROPERTY" }, ...properties.map((entry) => ({ value: entry.id, label: propertyName(entry) }))]} /></label></div>
+        <div className="stay-property">
+          <nav className="stay-nav" aria-label="Guest navigation"><Link to="/login">ACCESS DESK</Link></nav>
+          <label ref={propertySurface.ref}><span className="stay-label">CURRENT PROPERTY</span><Select id="stay-property-selector-trigger" value={propertyId} onChange={setPropertyId} placeholder="SELECT PROPERTY" options={[{ value: "", label: "SELECT PROPERTY" }, ...properties.map((entry) => ({ value: entry.id, label: propertyName(entry) }))]} /></label>
+        </div>
       </header>
       <SuperhostMount
         propertyId={propertyId || null}

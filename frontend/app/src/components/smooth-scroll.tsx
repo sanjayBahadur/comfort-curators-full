@@ -26,6 +26,15 @@ export default function SmoothScroll() {
         smoothWheel: true,
         stopInertiaOnNavigate: true,
         respectReducedMotion: true,
+        // Lenis does NOT look at [data-lenis-prevent] on its own -- that
+        // attribute is only meaningful if something evaluates it, via this
+        // exact callback. Without it, every element marked
+        // data-lenis-prevent (the Superhost terminal, the package cart
+        // column, the filter sidebar, debug/expansion panels...) still has
+        // its own internal wheel scrolling hijacked by Lenis's page-level
+        // smooth scroll, so it reads as "unscrollable" even though the CSS
+        // (overflow-y: auto) is correct.
+        prevent: (node) => Boolean(node.closest("[data-lenis-prevent]")),
       });
       document.documentElement.setAttribute("data-lenis-active", "true");
     };

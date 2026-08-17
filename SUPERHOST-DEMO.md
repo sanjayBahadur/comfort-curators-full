@@ -15,11 +15,13 @@ Run these in order from a clean seed. Do not skip a failed expectation.
    HANDED OVER`. If it never connects, stop here and inspect the API/worker.
 5. Click `[ HAND OVER CONTROL ]`. Confirm the green page frame, bottom session
    strip, countdown, `00/25 ACTIONS`, and crosshair cursor all appear. Confirm
-   the composer becomes enabled.
+   the composer becomes enabled. The drawer now auto-minimizes the instant
+   control is granted, so the live page is what's visible, not the chat --
+   no manual minimize click needed. Confirm the main `SUPERHOST` launcher
+   shakes gently and emits green particles while active in the background.
 6. Click `BUILD TO CHECKOUT`, check that it only fills the composer, then click
-   `SEND`. Click the `—` control in the drawer header to minimize it. Confirm
-   the main `SUPERHOST` launcher shakes gently, emits green particles, and the
-   control frame/cursor remain active.
+   `SEND`. Confirm the control frame/cursor remain active with the drawer
+   still minimized.
 7. Watch each cart action with the drawer minimized. For both Filter Coffee and Welcome Kit, expect: cursor
    moves to the item, a green ring appears, a visible product-card ghost drags
    toward `YOUR CART`, and the cart changes.

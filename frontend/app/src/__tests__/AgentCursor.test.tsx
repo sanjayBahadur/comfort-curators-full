@@ -68,7 +68,11 @@ describe("AgentCursor", () => {
 
     const cursor = container.querySelector(".agent-cursor");
     expect(cursor).not.toBeNull();
-    expect(cursor!.className).toContain("agent-cursor--idle");
+    // className.toContain doesn't work on an SVG element -- its
+    // `.className` is an SVGAnimatedString, not a plain string, since the
+    // cursor became a real arrow-pointer <svg> (see AgentCursor.tsx).
+    // classList is consistent across HTML and SVG elements.
+    expect(cursor!.classList.contains("agent-cursor--idle")).toBe(true);
   });
 
   it("positions crosshair at viewport center when idle (no target yet)", async () => {
@@ -116,7 +120,7 @@ describe("AgentCursor", () => {
     });
 
     const cursor = container.querySelector(".agent-cursor") as HTMLElement;
-    expect(cursor.className).toContain("agent-cursor--visible");
+    expect(cursor.classList.contains("agent-cursor--visible")).toBe(true);
 
     expect(cursor.style.transform).toContain("250px");
     expect(cursor.style.transform).toContain("240px");
@@ -167,7 +171,7 @@ describe("AgentCursor", () => {
     ring.remove();
   });
 
-  it("uses matrix green (#00ff66) crosshair styling", async () => {
+  it("renders the arrow-pointer body with matrix green (#00ff66) accents", async () => {
     const { getByTestId, container } = setup();
 
     await act(async () => {
@@ -176,8 +180,7 @@ describe("AgentCursor", () => {
 
     const cursor = container.querySelector(".agent-cursor") as HTMLElement;
     expect(cursor).not.toBeNull();
-
-    // Verify the element has the agent-cursor class
-    expect(cursor.className).toContain("agent-cursor");
+    expect(cursor.classList.contains("agent-cursor")).toBe(true);
+    expect(container.querySelector(".agent-cursor-arrow")).not.toBeNull();
   });
 });

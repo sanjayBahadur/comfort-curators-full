@@ -8,37 +8,20 @@
   position: fixed;
   top: 0;
   left: 0;
-  width: 24px;
-  height: 24px;
   pointer-events: none;
   z-index: 10000;
   will-change: transform;
   opacity: 0;
-  transition: transform 400ms var(--ease-expo-out), opacity 200ms ease-out;
+  overflow: visible;
+  filter: drop-shadow(0 0 4px rgba(0, 255, 102, 0.55));
+  transition: transform 550ms var(--ease-expo-out), opacity 200ms ease-out;
 }
 
-.agent-cursor::before,
-.agent-cursor::after {
-  content: "";
-  position: absolute;
-  background: #00ff66;
-  box-shadow: 0 0 6px 1px rgba(0, 255, 102, 0.35);
-}
-
-.agent-cursor::before {
-  top: 50%;
-  left: 0;
-  right: 0;
-  height: 2px;
-  transform: translateY(-50%);
-}
-
-.agent-cursor::after {
-  left: 50%;
-  top: 0;
-  bottom: 0;
-  width: 2px;
-  transform: translateX(-50%);
+.agent-cursor-arrow {
+  fill: #0a0a0a;
+  stroke: #00ff66;
+  stroke-width: 1.4;
+  stroke-linejoin: round;
 }
 
 .agent-cursor--visible {

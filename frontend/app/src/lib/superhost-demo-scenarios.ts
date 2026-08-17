@@ -55,6 +55,45 @@ export const SUPERHOST_DEMO_SCENARIOS: SuperhostDemoScenario[] = [
     expected: "refusal",
   },
   {
+    id: "owner-monthly-report",
+    label: "FILE THE MONTHLY REPORT",
+    prompt: "Generate this property's monthly report, draft it for accounting, then approve and file it.",
+    roles: ["owner"],
+    route: /^\/invoices\/?$/,
+    expected: "ui_action",
+  },
+  {
+    id: "staff-ticket-search",
+    label: "FIND GOMTI INSPECTIONS",
+    prompt: "Find tickets for Gomti Riverside this week, inspection task.",
+    roles: ["staff"],
+    route: /^\/ops\/tickets\/?$/,
+    expected: "ui_action",
+  },
+  {
+    id: "staff-inspection-ticket",
+    label: "PROPOSE AN INSPECTION",
+    // Indira Nagar Villa, not Gomti Riverside -- Gomti already carries a
+    // seeded pre-arrival inspection ticket (used by the search scenario
+    // above), and Superhost correctly noticed that overlap live and asked
+    // before proposing a probable duplicate rather than just creating one.
+    // That's good judgment, not a bug, but it makes the demo prompt
+    // non-deterministic; a property with no existing inspection ticket
+    // keeps this scenario a clean, unambiguous propose every time.
+    prompt: "Indira Nagar Villa has a new arrival this week. Propose a pre-arrival inspection ticket for tomorrow morning.",
+    roles: ["staff"],
+    route: /^\/ops(?:\/|$)/,
+    expected: "proposal",
+  },
+  {
+    id: "staff-maintenance",
+    label: "PROPOSE AC MAINTENANCE",
+    prompt: "The AC at Hazratganj Studio needs a maintenance visit. Propose the appropriate work for 10:00–14:00 Asia/Kolkata tomorrow.",
+    roles: ["staff"],
+    route: /^\/ops(?:\/|$)/,
+    expected: "proposal",
+  },
+  {
     id: "portfolio-summary",
     label: "REVIEW PORTFOLIO",
     prompt: "What needs attention across my portfolio right now? Use only the current property data.",
@@ -69,14 +108,6 @@ export const SUPERHOST_DEMO_SCENARIOS: SuperhostDemoScenario[] = [
     roles: ["owner", "staff", "guest"],
     route: /^\/(?!login|expansion|debug).*/,
     expected: "memory",
-  },
-  {
-    id: "staff-maintenance",
-    label: "PROPOSE AC MAINTENANCE",
-    prompt: "The AC at Hazratganj Studio needs a maintenance visit. Propose the appropriate work for 10:00–14:00 Asia/Kolkata tomorrow.",
-    roles: ["staff"],
-    route: /^\/ops(?:\/|$)/,
-    expected: "proposal",
   },
   {
     id: "guest-restock",

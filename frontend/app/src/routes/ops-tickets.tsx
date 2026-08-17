@@ -36,32 +36,94 @@ function normalizeFilterPrompt(value: string) {
   return value.toLocaleLowerCase("en-IN").replaceAll(/[^a-z0-9]+/g, " ").trim();
 }
 
+function startOfDay(date: Date) {
+  const copy = new Date(date);
+  copy.setHours(0, 0, 0, 0);
+  return copy;
+}
+
+function addDays(date: Date, days: number) {
+  const copy = new Date(date);
+  copy.setDate(copy.getDate() + days);
+  return copy;
+}
+
+// Real date-phrase parsing for the local NL filter, evaluated against the
+// browser's current time -- "this week" (Monday through the following
+// Monday), "today", "tomorrow" and "next N days" all become a real
+// [after, before) window applied to a ticket's requested window, not just
+// a phrase the interpreter silently drops. Kept separate from
+// applyNaturalLanguageFilter so it stays a pure, testable parse.
+function parseDateWindow(prompt: string): { after: Date; before: Date; label: string } | null {
+  const now = new Date();
+  if (/\btoday\b/.test(prompt)) {
+    const start = startOfDay(now);
+    return { after: start, before: addDays(start, 1), label: "today" };
+  }
+  if (/\btomorrow\b/.test(prompt)) {
+    const start = addDays(startOfDay(now), 1);
+    return { after: start, before: addDays(start, 1), label: "tomorrow" };
+  }
+  const nextDays = prompt.match(/\bnext (\d+) days?\b/);
+  if (nextDays) {
+    const days = Number(nextDays[1]);
+    return { after: now, before: addDays(now, days), label: `next ${days} days` };
+  }
+  if (/\bnext week\b/.test(prompt)) {
+    const mondayOffset = (now.getDay() + 6) % 7;
+    const thisMonday = startOfDay(addDays(now, -mondayOffset));
+    const nextMonday = addDays(thisMonday, 7);
+    return { after: nextMonday, before: addDays(nextMonday, 7), label: "next week" };
+  }
+  if (/\bthis week\b/.test(prompt)) {
+    const mondayOffset = (now.getDay() + 6) % 7;
+    const monday = startOfDay(addDays(now, -mondayOffset));
+    return { after: monday, before: addDays(monday, 7), label: "this week" };
+  }
+  return null;
+}
+
 export default function OpsTickets() {
   const [searchParams, setSearchParams] = useSearchParams();
   const queueQuery = useQuery({ queryKey: ["ops", "ticket-queue"], queryFn: getTicketQueue });
   const propertyFilter = searchParams.get("property") ?? "";
   const typeFilter = searchParams.get("type") ?? "";
   const statusFilter = searchParams.get("status") ?? "";
+  const afterFilter = searchParams.get("after") ?? "";
+  const beforeFilter = searchParams.get("before") ?? "";
   const [filterPrompt, setFilterPrompt] = useState("");
-  const [filterReply, setFilterReply] = useState("Try: assigned turnovers at Gomti Riverside");
+  const [filterReply, setFilterReply] = useState("Try: assigned turnovers at Gomti Riverside this week");
   const workers = queueQuery.data?.workers ?? [];
   const newTicketSurface = useAgentSurface("ops-tickets-new-ticket", ["focus", "click", "scroll_to"] as AgentAction[], "Open the new ticket form");
   const propertyFilterSurface = useAgentSurface("ops-tickets-property-filter", ["scroll_to", "open_panel"] as AgentAction[], "Property ticket filter", () => document.getElementById("ops-tickets-property-filter-trigger")?.click());
   const typeFilterSurface = useAgentSurface("ops-tickets-type-filter", ["scroll_to", "open_panel"] as AgentAction[], "Ticket type filter", () => document.getElementById("ops-tickets-type-filter-trigger")?.click());
   const statusFilterSurface = useAgentSurface("ops-tickets-status-filter", ["scroll_to", "open_panel"] as AgentAction[], "Ticket status filter", () => document.getElementById("ops-tickets-status-filter-trigger")?.click());
+  // The reliable path for a spoken-language queue search: type the exact
+  // request into this box and submit it, and it runs through the same
+  // deterministic interpreter a human typing here gets -- not the model
+  // guessing at three separate dropdown option labels blind.
+  const nlFilterInputSurface = useAgentSurface("ops-tickets-nl-filter-input", ["focus", "set"] as AgentAction[], "Natural-language ticket queue search box -- type a property, ticket type, status, or time window (e.g. \"this week\") here");
+  const nlFilterSubmitSurface = useAgentSurface("ops-tickets-nl-filter-submit", ["click"] as AgentAction[], "Submit the natural-language ticket queue search typed above");
 
   const filteredTickets = useMemo(() => {
     const tickets = queueQuery.data?.tickets ?? [];
+    const after = afterFilter ? new Date(afterFilter) : null;
+    const before = beforeFilter ? new Date(beforeFilter) : null;
     return tickets
       .filter((ticket) => !propertyFilter || ticket.data.property_id === propertyFilter)
       .filter((ticket) => !typeFilter || ticket.data.type === typeFilter)
       .filter((ticket) => !statusFilter || ticket.data.status === statusFilter)
+      .filter((ticket) => {
+        if (!after && !before) return true;
+        const when = new Date(ticket.data.requested_window?.start ?? ticket.data.created_at);
+        return (!after || when >= after) && (!before || when < before);
+      })
       .sort((left, right) =>
         (left.data.requested_window?.start ?? left.data.created_at).localeCompare(
           right.data.requested_window?.start ?? right.data.created_at,
         ),
       );
-  }, [propertyFilter, queueQuery.data?.tickets, statusFilter, typeFilter]);
+  }, [afterFilter, beforeFilter, propertyFilter, queueQuery.data?.tickets, statusFilter, typeFilter]);
 
   function setFilter(name: string, value: string) {
     setSearchParams((current) => {
@@ -87,20 +149,27 @@ export default function OpsTickets() {
       return;
     }
 
+    // Whole-word match against the prompt's own tokens, not a raw substring
+    // search -- "villa" is literally the first five letters of "village",
+    // so a naive prompt.includes(token) check let "gomti village" resolve
+    // to Indira Nagar Villa instead of Gomti Riverside. promptWords is an
+    // exact-token set, so only a genuine whole word matches.
+    const promptWords = new Set(prompt.split(" ").filter(Boolean));
     const properties = queueQuery.data?.properties ?? [];
     const property = properties.find((entry) => {
       const name = normalizeFilterPrompt(propertyName(entry));
       const address = normalizeFilterPrompt(entry.data.service_address.line1);
       const significantTokens = name.split(" ").filter((token) => token.length > 3);
-      return prompt.includes(name) || prompt.includes(address) || significantTokens.some((token) => prompt.includes(token));
+      return prompt.includes(name) || prompt.includes(address) || significantTokens.some((token) => promptWords.has(token));
     });
     const type = TICKET_TYPES.find((entry) => (TYPE_ALIASES[entry] ?? [humanize(entry)]).some((alias) => prompt.includes(normalizeFilterPrompt(alias))));
     const status = [...TICKET_STATUSES]
       .sort((left, right) => humanize(right).length - humanize(left).length)
       .find((entry) => prompt.includes(normalizeFilterPrompt(humanize(entry))));
+    const dateWindow = parseDateWindow(prompt);
 
-    if (!property && !type && !status) {
-      setFilterReply("No supported filter found · try a property name, type, or status.");
+    if (!property && !type && !status && !dateWindow) {
+      setFilterReply("No supported filter found · try a property name, ticket type, status, or a time window like \"this week\".");
       return;
     }
 
@@ -108,12 +177,17 @@ export default function OpsTickets() {
     if (property) next.set("property", property.id);
     if (type) next.set("type", type);
     if (status) next.set("status", status);
+    if (dateWindow) {
+      next.set("after", dateWindow.after.toISOString());
+      next.set("before", dateWindow.before.toISOString());
+    }
     setSearchParams(next, { replace: true });
 
     const applied = [
       property ? propertyName(property) : null,
       type ? humanize(type) : null,
       status ? humanize(status) : null,
+      dateWindow ? dateWindow.label : null,
     ].filter(Boolean);
     setFilterReply(`Applied · ${applied.join(" / ")} · queue filters synchronized`);
   }
@@ -143,7 +217,7 @@ export default function OpsTickets() {
             <span>STATUS</span>
              <Select id="ops-tickets-status-filter-trigger" value={statusFilter} onChange={(value) => setFilter("status", value)} options={[{ value: "", label: "ALL STATUSES" }, ...TICKET_STATUSES.map((status) => ({ value: status, label: humanize(status).toUpperCase() }))]} />
           </label>
-          {(propertyFilter || typeFilter || statusFilter) && (
+          {(propertyFilter || typeFilter || statusFilter || afterFilter || beforeFilter) && (
             <button type="button" onClick={() => setSearchParams({}, { replace: true })}>CLEAR FILTERS ×</button>
           )}
         </section>
@@ -153,8 +227,8 @@ export default function OpsTickets() {
           <form onSubmit={applyNaturalLanguageFilter}>
             <label htmlFor="ops-filter-prompt" className="sr-only">Describe the tickets to find</label>
             <span aria-hidden="true">›</span>
-            <input id="ops-filter-prompt" type="text" value={filterPrompt} onChange={(event) => setFilterPrompt(event.currentTarget.value)} placeholder="Use human language to search" autoComplete="off" />
-            <button type="submit">FILTER →</button>
+            <input ref={nlFilterInputSurface.ref} id="ops-filter-prompt" type="text" value={filterPrompt} onChange={(event) => setFilterPrompt(event.currentTarget.value)} placeholder="Use human language to search" autoComplete="off" />
+            <button ref={nlFilterSubmitSurface.ref} type="submit">FILTER →</button>
           </form>
           <p aria-live="polite">· {filterReply}</p>
         </section>
