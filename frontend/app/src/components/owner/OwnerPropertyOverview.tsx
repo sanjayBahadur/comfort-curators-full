@@ -18,7 +18,11 @@ function nameOf(property: DashboardProperty) {
 function propertyCoordinates(property: DashboardProperty, index: number) {
   const address = property.property.data.service_address;
   const text = `${address.line1} ${address.line2 ?? ""} ${address.city}`.toLocaleLowerCase("en-IN");
-  const anchor = text.includes("hazratganj") ? { lat: 26.8494, lng: 80.9462 } : { lat: 26.8567, lng: 81.0086 };
+  // Real Noida coordinates -- same anchors as demo-property-locations.ts
+  // (the field-routing map). These were still real Lucknow lat/lng
+  // (26.8x/80.9x) after the address text itself moved to Noida: the map
+  // tiles behind the pin didn't match anything the labels claimed.
+  const anchor = text.includes("hazratganj") ? { lat: 28.5708, lng: 77.3210 } : { lat: 28.5098, lng: 77.4031 };
   let hash = 0;
   for (const character of property.property.id) hash = (hash * 31 + character.charCodeAt(0)) | 0;
   const offset = ((Math.abs(hash) % 1001) - 500) / 100_000;
