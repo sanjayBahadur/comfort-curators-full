@@ -281,14 +281,14 @@
 .shop-product-visual {
   display: grid;
   position: relative;
-  aspect-ratio: 1;
-  /* Grid items get an automatic min-height: auto, which is content-based --
-     for a box holding a replaced element (the product photo), that content
-     minimum comes from the photo's own natural aspect ratio, not from this
-     box's own aspect-ratio: 1. Left at auto, a portrait photo's real
-     height could still win over the square this box asks for. Pinning it
-     to 0 is what makes aspect-ratio: 1 actually final. */
-  min-height: 0;
+  /* No forced aspect-ratio: the box stretches to whatever height each
+     photo's own proportions need (a portrait floor lamp gets a taller box
+     than a square candle), and CSS Grid still aligns every card in the
+     same row to the tallest one, so rows stay even without cropping or
+     squaring anything. A card with no real photo (the two-letter mark
+     fallback) has nothing to size itself from, so it keeps a min-height
+     to avoid collapsing to just the mark's own line-height. */
+  min-height: 220px;
   border-bottom: var(--rule);
   place-items: center;
   background: var(--paper-2);
@@ -312,10 +312,11 @@
 }
 
 .shop-product-photo {
+  display: block;
   width: 100%;
-  height: 100%;
+  height: auto;
+  box-sizing: border-box;
   padding: 14%;
-  object-fit: contain;
 }
 
 .shop-product-classification {

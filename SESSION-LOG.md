@@ -208,6 +208,29 @@ the same path isn't retried blind.
   `seed.ts` changed. — `scripts/seed.ts` and about a dozen frontend/backend
   files, full list in the commit diff.
 
+## Catalog cards redesigned back to "stretch to fit" (no forced square)
+
+- After the square-aspect-ratio fix directly below shipped, the user said
+  the forced square wasn't how the catalog used to look at all -- it used
+  to stretch each card vertically to fit its own photo, no cropping, and
+  that looked fine. Checked: `aspect-ratio: 1` has been in this file since
+  this repo's very first commit (`46dabe9`), so it isn't a regression from
+  anywhere in this session -- whatever version the user remembers predates
+  this frozen copy. Rather than keep debugging a design this repo never
+  actually had, rebuilt the card visual to match what was described:
+  `.shop-product-visual` no longer forces `aspect-ratio: 1` -- each photo
+  now renders at `height: auto` off its own real proportions, and CSS
+  Grid still aligns every card in a row to the tallest one (a min-height
+  keeps the no-photo two-letter-mark fallback from collapsing, since it
+  has no photo to size itself from). The earlier fix's column-width lock
+  (`grid-template-columns: minmax(0, 1fr)` on `.shop-product-open`) stays
+  -- still required regardless of square vs. stretch, or the same
+  horizontal blowout comes back. Verified with real `getBoundingClientRect()`
+  measurements and screenshots in both Chromium and Firefox: rows stay
+  even, columns stay locked to 262px, no overflow, portrait photos
+  (the floor lamps) and the no-photo fallback cards all render cleanly. —
+  `src/routes/package-shop.css`
+
 ## Catalog grid layout broken in Chrome (product cards overflowing into each other)
 
 - **Reported live**: on the package/catalog page, some product cards'
