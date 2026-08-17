@@ -208,6 +208,28 @@ the same path isn't retried blind.
   `seed.ts` changed. — `scripts/seed.ts` and about a dozen frontend/backend
   files, full list in the commit diff.
 
+## Opening screen had no real content
+
+- **The "LIVE READOUT" beat on the first-visit intro screen (`/`, before
+  login) was structurally dead for its actual audience.** Two of its three
+  stats (`Open Tickets`, `Curators on Shift`) were hardcoded `null` forever;
+  the third fetched `/v1/properties` client-side, which isn't in the
+  backend's public-path allowlist (`internal/iam/authgate.go`) and requires
+  an authenticated session — confirmed live via network logging that it
+  401s for every genuine first-time visitor, not occasionally. So the entire
+  "live numbers" section was always empty for the only audience it's ever
+  shown to. Beat 2 was also decorative-only (a ruled grid, no heading).
+  Rewrote both: removed the dead fetch entirely, gave beat 2 a real heading
+  ("Turnover. Dispatch. Billing. Documents. Compliance. / One system, not
+  five tools stitched together."), and replaced the fake stats in beat 3
+  with three static, always-true capability statements about how Superhost
+  actually works (PROPOSES / A HUMAN DECIDES / WHERE YOU ALREADY ARE).
+  Verified with `tsc -b --noEmit` (clean) and a fresh no-session Playwright
+  pass through all four beats (screenshotted each once its crossfade
+  settled — an early screenshot mid-transition looked like an overlap bug,
+  confirmed to be just transition timing, not a real defect). —
+  `src/routes/intro.tsx`, `src/routes/intro.css`
+
 ## Operational notes
 
 - Full environment reset performed once mid-session (`docker compose down

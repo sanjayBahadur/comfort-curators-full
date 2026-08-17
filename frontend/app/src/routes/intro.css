@@ -108,6 +108,26 @@
 .intro-rule-grid span { border-right: var(--rule); transform: scaleY(0); transform-origin: top; animation: intro-column 650ms var(--ease-expo-out) calc(var(--column) * 20ms) forwards; }
 .intro-rule-grid span:first-child { border-left: var(--rule); }
 
+.intro-beat-two-heading {
+  max-width: 22ch;
+  margin: 0 0 5vh;
+  font-family: var(--font-display);
+  font-size: clamp(28px, 4vw, 52px);
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  line-height: 1.08;
+}
+
+.intro-beat-two-heading em {
+  display: block;
+  margin-top: 0.4em;
+  color: var(--ink-60);
+  font-size: 0.5em;
+  font-style: normal;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
 .intro-registration { position: absolute; width: 26px; height: 26px; }
 .intro-registration::before,
 .intro-registration::after { position: absolute; background: var(--ink); content: ""; }
@@ -120,10 +140,33 @@
 .intro-grid-label { align-self: end; margin: 24px 0 0; }
 
 .intro-beat-three { background: var(--paper-2); align-content: center; }
-.intro-stats { display: grid; margin-top: 12vh; border-top: var(--rule); border-bottom: var(--rule); grid-template-columns: repeat(3, 1fr); }
+
+.intro-beat-three-heading {
+  max-width: 26ch;
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(24px, 3.4vw, 42px);
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.intro-stats { display: grid; margin-top: 6vh; border-top: var(--rule); border-bottom: var(--rule); grid-template-columns: repeat(3, 1fr); }
 .intro-stat { min-height: 180px; padding: 24px; border-right: var(--rule); }
 .intro-stat:last-child { border-right: 0; }
 .intro-stat strong { display: block; margin-top: 36px; font-family: var(--font-meta); font-size: clamp(54px, 9vw, 130px); font-weight: 400; letter-spacing: -0.08em; line-height: 0.8; opacity: 0; animation: intro-value 150ms var(--ease-expo-out) 350ms forwards; }
+
+.intro-capability-copy {
+  margin: 20px 0 0;
+  max-width: 30ch;
+  font-family: var(--font-display);
+  font-size: clamp(16px, 1.6vw, 20px);
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  line-height: 1.35;
+  opacity: 0;
+  animation: intro-value 350ms var(--ease-expo-out) 250ms forwards;
+}
 
 .intro-beat-four { background: var(--ink); color: var(--paper); align-content: space-between; }
 .intro-wordmark { font-family: var(--font-shout); font-size: clamp(58px, 12vw, 180px); letter-spacing: -0.08em; line-height: 0.78; transform: translateY(40px); animation: intro-land 700ms var(--ease-overshoot) 100ms forwards; }
