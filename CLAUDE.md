@@ -101,10 +101,13 @@ accident during the auth, roles and dispatch rework:
   its capacity probe wrote 50,000 tickets and 100,000 inventory movements
   into `comfort_curators` on every run. Live-stack probes are now gated
   behind `CC_ACCEPTANCE_LIVE=1` plus an explicit guarded `CC_DB_NAME`.
-- **`comfort_curators` holds ~600k synthetic `tenant-capacity-*` rows**
-  from those runs, across 12 tables. Real data lives under the two UUID
-  tenants and is untouched; the two sets are disjoint. Delete by
-  `tenant_id LIKE 'tenant-capacity-%'` or reseed.
+- **1.2M synthetic `tenant-capacity-*` rows remain in `inventory_movements`**
+  and ~144 in `audit_events`. The other 614,547 leaked rows were deleted;
+  these two cannot be, because both are append-only ledgers (invariant 8) and
+  the triggers were correctly left in place. They are tenant-scoped, so real
+  queries filter them out. `docker compose down -v` plus a reseed is the only
+  clean removal — which would also fix the thin catalog (1 item against the
+  62 the seed describes).
 - **The suite is red: 59 failing tests across 7 packages** (`P1-03`).
   Down from 104 in 18 packages. Not a regression from `P1-02` — the same
   failures reproduce against a database cloned from the seeded application
