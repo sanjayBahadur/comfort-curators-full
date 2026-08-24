@@ -31,32 +31,13 @@ func TestRecoveryEndpointExists(t *testing.T) {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		t.Errorf("expected 200 from /health/recovery, got %d", resp.StatusCode)
-	}
-
-	var report struct {
-		RPO           string   `json:"rpo"`
-		RTO           string   `json:"rto"`
-		BackupEnabled bool     `json:"backup_enabled"`
-		Status        string   `json:"status"`
-		Degradation   []string `json:"degradation"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&report); err != nil {
-		t.Fatalf("failed to parse response: %v", err)
-	}
-
-	if report.RPO == "" {
-		t.Error("expected RPO to be populated")
-	}
-	if report.RTO == "" {
-		t.Error("expected RTO to be populated")
-	}
-	if !report.BackupEnabled {
-		t.Error("expected BackupEnabled to be true")
-	}
-	if report.Status != "ok" && report.Status != "degraded" {
-		t.Errorf("expected status ok or degraded, got %q", report.Status)
+	// /health/recovery discloses backup/migration/outbox internals and is
+	// gated to staff (internal/recovery: iam.RequireRole(RoleStaff)). An
+	// unauthenticated request must therefore be refused. The recovery report
+	// contents are verified by the staff-authenticated acceptance probe and
+	// by the package's own unit tests.
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Errorf("expected 401 from /health/recovery without staff auth, got %d", resp.StatusCode)
 	}
 }
 

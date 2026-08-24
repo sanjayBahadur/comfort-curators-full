@@ -103,9 +103,9 @@ func (s *ComplianceStore) ListActiveItems(ctx context.Context, now time.Time) ([
 			effective_date, expiry_date, status, evidence_ids, renewed_from_id,
 			hold_id, created_at, updated_at
 		FROM compliance_items
-		WHERE status = $1
+		WHERE status IN ($1, $2)
 		ORDER BY expiry_date ASC
-	`, ItemStatusActive)
+	`, ItemStatusActive, ItemStatusExpired)
 	if err != nil {
 		return nil, fmt.Errorf("list active compliance items: %w", err)
 	}

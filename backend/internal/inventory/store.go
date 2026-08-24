@@ -181,8 +181,9 @@ func (s *Store) GetEffectiveBalance(ctx context.Context, q querier, tenantID, lo
 		SELECT COALESCE(SUM(quantity), 0)
 		FROM inventory_movements
 		WHERE tenant_id = $1 AND location_id = $2 AND catalog_item_id = $3
+		  AND movement_type <> $4
 		  AND (expires_at IS NULL OR expires_at > NOW())
-	`, tenantID, locationID, catalogItemID).Scan(&balance)
+	`, tenantID, locationID, catalogItemID, MovementTypeExpiry).Scan(&balance)
 	return balance, err
 }
 
