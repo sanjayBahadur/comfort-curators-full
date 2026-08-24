@@ -99,6 +99,13 @@ func ensureContractSchema(t *testing.T, pool *pgxpool.Pool) {
 	if err := audit.EnsureSchema(ctx, pool); err != nil {
 		t.Fatalf("ensure audit schema: %v", err)
 	}
+	// Fee rules are global reference data keyed by (rule_version, currency,
+	// service_tier). The whole package shares one test database, so clear the
+	// table here so each test seeds its own rules without colliding on the
+	// unique key.
+	if _, err := pool.Exec(ctx, `TRUNCATE fee_rules`); err != nil {
+		t.Fatalf("truncate fee rules: %v", err)
+	}
 }
 
 func contractTerms() []byte {
@@ -389,12 +396,24 @@ func TestContractsAgreementCrossTenantDenied(t *testing.T) {
 		t.Fatalf("create agreement: %v", err)
 	}
 
+	// A different tenant reading or accepting the agreement fails closed as
+	// "not found": the query is tenant-scoped, so the caller can neither read
+	// the agreement nor learn whether it exists.
 	otherSvc := contractsService(pool, "tenant-other")
-	if _, err := otherSvc.GetAgreement(ctx, "tenant-other", created.ID); !errors.Is(err, contracts.ErrCrossTenantDenied) {
-		t.Errorf("cross-tenant read must be denied, got %v", err)
+	if _, err := otherSvc.GetAgreement(ctx, "tenant-other", created.ID); !errors.Is(err, contracts.ErrAgreementNotFound) {
+		t.Errorf("cross-tenant read must fail closed with ErrAgreementNotFound, got %v", err)
 	}
-	if _, err := otherSvc.Accept(ctx, "tenant-other", created.ID, "owner-2"); !errors.Is(err, contracts.ErrCrossTenantDenied) {
-		t.Errorf("cross-tenant accept must be denied, got %v", err)
+	if _, err := otherSvc.Accept(ctx, "tenant-other", created.ID, "owner-2"); !errors.Is(err, contracts.ErrAgreementNotFound) {
+		t.Errorf("cross-tenant accept must fail closed with ErrAgreementNotFound, got %v", err)
+	}
+
+	// A denying authorizer refuses before the agreement is ever looked up.
+	deniedSvc := contracts.NewService(pool, audit.NewAuditStore(pool)).WithAuthorizer(testAuthorizer{deny: true})
+	if _, err := deniedSvc.GetAgreement(ctx, tenantID, created.ID); !errors.Is(err, contracts.ErrCrossTenantDenied) {
+		t.Errorf("denied authorizer must yield ErrCrossTenantDenied, got %v", err)
+	}
+	if _, err := deniedSvc.Accept(ctx, tenantID, created.ID, "owner-3"); !errors.Is(err, contracts.ErrCrossTenantDenied) {
+		t.Errorf("denied authorizer must refuse accept with ErrCrossTenantDenied, got %v", err)
 	}
 }
 

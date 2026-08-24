@@ -69,14 +69,28 @@ func connectTestPool(t *testing.T) *pgxpool.Pool {
 	return pool
 }
 
+func ensureIAMTestSchema(t *testing.T, pool *pgxpool.Pool) {
+	t.Helper()
+	ctx := context.Background()
+	if err := EnsureSchema(ctx, pool); err != nil {
+		t.Fatalf("ensure schema: %v", err)
+	}
+	if err := audit.EnsureSchema(ctx, pool); err != nil {
+		t.Fatalf("ensure audit schema: %v", err)
+	}
+	// The package shares one test database across runs, so clear the tables
+	// these integration tests write so each test starts from a clean state.
+	if _, err := pool.Exec(ctx, `TRUNCATE users, authentication_methods, sessions, mfa_methods`); err != nil {
+		t.Fatalf("truncate iam test tables: %v", err)
+	}
+}
+
 func TestMFATOTPEnrollmentAndVerification(t *testing.T) {
 	pool := connectTestPool(t)
 	defer pool.Close()
 
 	ctx := context.Background()
-	if err := EnsureSchema(ctx, pool); err != nil {
-		t.Fatalf("ensure schema: %v", err)
-	}
+	ensureIAMTestSchema(t, pool)
 
 	auditStore := audit.NewAuditStore(pool)
 	svc := NewIdentityService(pool, auditStore)
@@ -177,9 +191,7 @@ func TestMFANoVerifiedMethodRequiresMFAForStaff(t *testing.T) {
 	defer pool.Close()
 
 	ctx := context.Background()
-	if err := EnsureSchema(ctx, pool); err != nil {
-		t.Fatalf("ensure schema: %v", err)
-	}
+	ensureIAMTestSchema(t, pool)
 
 	auditStore := audit.NewAuditStore(pool)
 	svc := NewIdentityService(pool, auditStore)
@@ -206,9 +218,7 @@ func TestOTPRequestDoesNotGrantArbitraryRole(t *testing.T) {
 	defer pool.Close()
 
 	ctx := context.Background()
-	if err := EnsureSchema(ctx, pool); err != nil {
-		t.Fatalf("ensure schema: %v", err)
-	}
+	ensureIAMTestSchema(t, pool)
 
 	auditStore := audit.NewAuditStore(pool)
 	svc := NewIdentityService(pool, auditStore)
