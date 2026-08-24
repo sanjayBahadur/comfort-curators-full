@@ -57,6 +57,15 @@ that fail if they are broken; treat a failure as a stop, not a flake.
    person-tracking.
 7. **Never build Aadhaar or biometric attendance.** Private employers
    cannot compel Aadhaar authentication.
+8. **Four tables are append-only ledgers**, enforced by database triggers
+   that raise on `UPDATE` and `DELETE`: `audit_events`,
+   `inventory_movements`, `onboarding_inspections`,
+   `service_contract_versions`. Corrections are new compensating rows, never
+   edits. Do not disable these triggers to make a cleanup or a migration
+   convenient — an audit trail you can quietly delete from is not one, and
+   the same applies to a stock ledger. If a schema change genuinely needs
+   the data rewritten, do it as an explicit, reviewed migration that records
+   what it did.
 
 ## Workforce controls that must not regress
 
