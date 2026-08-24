@@ -51,6 +51,14 @@ func postgresAvailable() bool {
 // that the phase-7 gate executes. It is skipped when no live stack is present
 // so the unit/build test run stays hermetic.
 func TestCapacityTargetProbeRunsAgainstLiveStack(t *testing.T) {
+	// This probe bulk-loads 50,000 tickets and 100,000 inventory movements
+	// into the running stack's database and cannot be pointed at an empty
+	// test database, because it needs the stack's provisioned schema. It runs
+	// only when explicitly asked for. See TestMain.
+	if !liveAcceptanceEnabled() {
+		t.Skip("set CC_ACCEPTANCE_LIVE=1 and CC_DB_NAME to run the live capacity probe; " +
+			"it writes 150,000 rows to the target database")
+	}
 	if !liveStackAvailable() {
 		t.Skip("live API stack not reachable; skipping capacity probe integration test")
 	}
