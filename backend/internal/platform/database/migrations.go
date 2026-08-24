@@ -6,6 +6,7 @@ import (
 	"embed"
 	"fmt"
 	"io/fs"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -78,12 +79,73 @@ func (r *Runner) Run(ctx context.Context) error {
 
 	logging.Info(ctx, "running pending migrations", "count", len(pending))
 	for _, m := range pending {
+		adopted, err := r.adoptBaseline(ctx, m)
+		if err != nil {
+			return fmt.Errorf("migrations: baseline check %d (%s): %w", m.Version, m.Description, err)
+		}
+		if adopted {
+			continue
+		}
 		if err := r.apply(ctx, m); err != nil {
 			return fmt.Errorf("migrations: apply %d (%s): %w", m.Version, m.Description, err)
 		}
 	}
 
 	return nil
+}
+
+// baselineMarker matches the directive a baseline migration carries in its
+// header comment, e.g. "-- baseline-if-exists: properties".
+var baselineMarker = regexp.MustCompile(`(?m)^--\s*baseline-if-exists:\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*$`)
+
+// adoptBaseline handles the one-off problem of introducing migrations to a
+// database whose schema was built some other way.
+//
+// Before P1-04, 143 of these tables were created at every application start by
+// module EnsureSchema functions rather than by a migration. Existing databases
+// therefore already have the whole schema but no migration record for it, and
+// running the baseline against them would fail on the first CREATE TABLE.
+//
+// A migration may declare "-- baseline-if-exists: <table>". If that table is
+// already present, the database is taken to be at this version already: the
+// migration is recorded as applied without being executed. A fresh database
+// does not have the table, so it runs normally.
+//
+// This applies only to a migration that declares the marker. Ordinary
+// migrations always execute — silently skipping one because something already
+// exists is how a schema drifts away from its history.
+func (r *Runner) adoptBaseline(ctx context.Context, m Migration) (bool, error) {
+	match := baselineMarker.FindStringSubmatch(m.SQL)
+	if match == nil {
+		return false, nil
+	}
+	sentinel := match[1]
+
+	var exists bool
+	if err := r.db.Pool.QueryRow(ctx,
+		`SELECT EXISTS (
+			SELECT 1 FROM information_schema.tables
+			 WHERE table_schema = 'public' AND table_name = $1
+		)`, sentinel).Scan(&exists); err != nil {
+		return false, fmt.Errorf("check sentinel table %q: %w", sentinel, err)
+	}
+	if !exists {
+		return false, nil
+	}
+
+	if _, err := r.db.Pool.Exec(ctx,
+		`INSERT INTO schema_migrations (version, description, checksum) VALUES ($1, $2, $3)`,
+		m.Version, m.Description, m.Checksum,
+	); err != nil {
+		return false, fmt.Errorf("record baseline: %w", err)
+	}
+
+	logging.Info(ctx, "migration adopted as baseline; schema already present",
+		"version", m.Version,
+		"description", m.Description,
+		"sentinel", sentinel,
+	)
+	return true, nil
 }
 
 func (r *Runner) ensureHistoryTable(ctx context.Context) error {
