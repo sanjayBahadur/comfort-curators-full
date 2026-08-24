@@ -463,10 +463,14 @@ func TestPropertyServiceCreateValidation(t *testing.T) {
 		t.Error("missing owner authority must be rejected")
 	}
 
+	// access_method is deliberately optional at the service layer: the
+	// property API does not supply it, and the frozen build removed the
+	// requirement (docs/development/CHANGELOG.md, Phase 2). Creation with
+	// an empty access method must therefore succeed.
 	params = samplePropertyParams(tenantID)
 	params.AccessMethod = ""
-	if _, err := svc.CreateProperty(ctx, params, "ops-1"); err == nil {
-		t.Error("missing access method must be rejected")
+	if _, err := svc.CreateProperty(ctx, params, "ops-1"); err != nil {
+		t.Errorf("missing access method must be allowed, got %v", err)
 	}
 
 	params = samplePropertyParams(tenantID)
