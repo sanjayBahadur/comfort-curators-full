@@ -19,7 +19,10 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -59,19 +62,73 @@ func env(key, fallback string) string {
 	return fallback
 }
 
+// packageName derives a short identifier for the package under test from the
+// test binary's name, which Go builds as "<pkg>.test". It is the only handle a
+// test has on its own identity without every call site passing one in.
+func packageName() string {
+	base := filepath.Base(os.Args[0])
+	base = strings.TrimSuffix(base, ".test")
+	base = strings.TrimSuffix(base, ".exe")
+
+	var b strings.Builder
+	for _, r := range strings.ToLower(base) {
+		switch {
+		case r >= 'a' && r <= 'z', r >= '0' && r <= '9':
+			b.WriteRune(r)
+		case r == '_' || r == '-' || r == '.':
+			b.WriteByte('_')
+		}
+	}
+	name := strings.Trim(b.String(), "_")
+	if name == "" {
+		return ""
+	}
+	// Postgres truncates identifiers at 63 bytes; leave room for the affixes.
+	if len(name) > 24 {
+		name = name[:24]
+	}
+	return name
+}
+
+// isolatedName gives each test package its own database.
+//
+// Every package previously shared one database, and that sharing is what makes
+// the suite red: tests/database_integration_test.go deliberately poisons a
+// schema_migrations checksum and does not restore it, so every package that
+// subsequently runs migrations fails with "migration checksum drift at version
+// 4". Packages also TRUNCATE tables out from under each other.
+//
+// The name still ends in _test, so the guard applies unchanged.
+func isolatedName(base string) string {
+	pkg := packageName()
+	if pkg == "" {
+		return base
+	}
+	trimmed := strings.TrimSuffix(base, requiredSuffix)
+	return trimmed + "_" + pkg + requiredSuffix
+}
+
 // Resolve reads the environment and applies defaults. It does not validate;
 // callers that are about to connect must run ValidateName on the result.
+//
+// The resolved name is per-package unless CC_DB_NAME_EXACT is set, which
+// forces a single shared database (used by the guard's own tests).
 func Resolve() Settings {
 	port, err := strconv.Atoi(env("CC_DB_PORT", "5432"))
 	if err != nil || port <= 0 {
 		port = 5432
 	}
+	name := env("CC_DB_NAME", DefaultName)
+	if os.Getenv("CC_DB_NAME_EXACT") == "" {
+		name = isolatedName(name)
+	}
+
 	return Settings{
 		Host: env("CC_DB_HOST", "localhost"),
 		Port: port,
 		User: env("CC_DB_USER", "ccuser"),
 		Pass: env("CC_DB_PASS", "ccpass"),
-		Name: env("CC_DB_NAME", DefaultName),
+		Name: name,
 	}
 }
 
@@ -93,14 +150,25 @@ func ValidateName(name string) error {
 // a stack trace, so the run fails loudly and visibly. The alternative that
 // must never be used is returning an error the caller can turn into a skip.
 func MustName() string {
-	name := Resolve().Name
-	if err := ValidateName(name); err != nil {
+	s := Resolve()
+	if err := ValidateName(s.Name); err != nil {
 		panic(fmt.Sprintf("%v\n\nThe test suite may only run against a disposable "+
 			"database. Unset CC_DB_NAME to use the default %q, or set it to a name "+
 			"ending in %q.", err, DefaultName, requiredSuffix))
 	}
-	return name
+	// Callers build their own connection string and connect directly, so this
+	// is the only place the per-package database can be created. Done once per
+	// test binary; a failure here is left to surface as the caller's own
+	// connection error, which carries better context.
+	ensureOnce.Do(func() {
+		if Available() {
+			_ = ensureDatabase(s)
+		}
+	})
+	return s.Name
 }
+
+var ensureOnce sync.Once
 
 // EnsureExists creates the test database if it is missing. Callers that build
 // their own connection string via MustName use this to get the same
