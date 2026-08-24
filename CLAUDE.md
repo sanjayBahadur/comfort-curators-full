@@ -85,13 +85,23 @@ accident during the auth, roles and dispatch rework:
   writes `deadbeef…` to the *test* database, leaving the application
   database byte-identical. Never weaken `testdb.ValidateName`, and never
   turn its failure into a `t.Skip`.
-- **The suite is red: 104 failing tests across 18 packages** (`P1-03`).
-  Measured 24 Aug 2026 once the suite could be run safely. This is not a
-  regression from `P1-02` — the same failures occur against a database
-  cloned from the seeded application database, so they are genuine. The
-  earlier "~30 failing" figure was an undercount from a run that aborted
-  partway. Until `P1-03` lands, a red suite says nothing new; do not treat
-  it as a signal.
+- **Test-safety audits must cover `.go`, not just `_test.go`.** The first
+  pass of `P1-02` rewrote all 36 `*_test.go` files and still left the worst
+  offender in place: `tests/acceptance/probes.go` is an ordinary `.go` file
+  in a `package main` that carries test files, so `go test ./...` ran it and
+  its capacity probe wrote 50,000 tickets and 100,000 inventory movements
+  into `comfort_curators` on every run. Live-stack probes are now gated
+  behind `CC_ACCEPTANCE_LIVE=1` plus an explicit guarded `CC_DB_NAME`.
+- **`comfort_curators` holds ~600k synthetic `tenant-capacity-*` rows**
+  from those runs, across 12 tables. Real data lives under the two UUID
+  tenants and is untouched; the two sets are disjoint. Delete by
+  `tenant_id LIKE 'tenant-capacity-%'` or reseed.
+- **The suite is red: 59 failing tests across 7 packages** (`P1-03`).
+  Down from 104 in 18 packages. Not a regression from `P1-02` — the same
+  failures reproduce against a database cloned from the seeded application
+  database, so they are genuine. The earlier "~30 failing" figure was an
+  undercount from a run that aborted partway. Until `P1-03` lands, a red
+  suite says nothing new; do not treat it as a signal.
 - **No session→worker link exists.** `workers` has no `user_id`/`actor_id`
   column and there is no `/me` endpoint, so nothing can resolve a session
   to a worker. `P2-04` and `P2-05` are therefore blocked behind `P1-04`
