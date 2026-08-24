@@ -13,6 +13,7 @@ import (
 	"comfort-curators-backend/internal/platform/config"
 	"comfort-curators-backend/internal/platform/database"
 	"comfort-curators-backend/internal/platform/logging"
+	"comfort-curators-backend/internal/platform/testdb"
 	"comfort-curators-backend/internal/property"
 	"comfort-curators-backend/internal/quality"
 	"comfort-curators-backend/internal/reservations"
@@ -61,10 +62,7 @@ func connectMigrated(t *testing.T) *database.DB {
 	if pass == "" {
 		pass = "ccpass"
 	}
-	name := os.Getenv("CC_DB_NAME")
-	if name == "" {
-		name = "comfort_curators"
-	}
+	name := testdb.MustName()
 
 	cfg := config.Config{
 		DBHost: host,

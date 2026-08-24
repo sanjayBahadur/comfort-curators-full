@@ -22,7 +22,7 @@ type Engine string
 
 const (
 	EngineJarvis Engine = "jarvis"
-	EngineHermes      Engine = "hermes"
+	EngineHermes Engine = "hermes"
 )
 
 type Scenario struct {

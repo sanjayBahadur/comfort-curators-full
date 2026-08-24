@@ -18,6 +18,7 @@ import (
 	"comfort-curators-backend/internal/platform/config"
 	"comfort-curators-backend/internal/platform/database"
 	"comfort-curators-backend/internal/platform/security"
+	"comfort-curators-backend/internal/platform/testdb"
 )
 
 func TestSecuritySecretStringRedactedInLogs(t *testing.T) {
@@ -564,10 +565,7 @@ func secAuditDBConnect(t *testing.T) (*database.DB, func()) {
 	if pass == "" {
 		pass = "ccpass"
 	}
-	name := os.Getenv("CC_DB_NAME")
-	if name == "" {
-		name = "comfort_curators"
-	}
+	name := testdb.MustName()
 
 	cfg := config.Config{
 		DBHost: host,

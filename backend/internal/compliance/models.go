@@ -19,15 +19,15 @@ const (
 	ItemSeverityCritical    = "critical"
 	ItemSeverityNonCritical = "non_critical"
 
-	RoleJarvis     = "jarvis"
-	RoleSuperhost  = "superhost"
+	RoleJarvis    = "jarvis"
+	RoleSuperhost = "superhost"
 )
 
 var (
 	ErrComplianceItemNotFound    = errors.New("compliance item not found")
 	ErrInvalidComplianceItem     = errors.New("invalid compliance item")
 	ErrItemNotActive             = errors.New("compliance item is not active")
-	ErrSuperhostDenied         = errors.New("superhost cannot clear compliance holds")
+	ErrSuperhostDenied           = errors.New("superhost cannot clear compliance holds")
 	ErrComplianceRenewalNotFound = errors.New("compliance renewal warning not found")
 )
 

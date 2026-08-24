@@ -82,7 +82,7 @@ var (
 	ErrInvalidFeed             = errors.New("invalid calendar feed")
 	ErrFeedNotActive           = errors.New("calendar feed is not active")
 	ErrEmptyFeedContent        = errors.New("calendar feed content is empty")
-	ErrSuperhostCannotMutate = errors.New("superhost cannot mutate external calendars")
+	ErrSuperhostCannotMutate   = errors.New("superhost cannot mutate external calendars")
 	ErrInvalidCalendarContent  = errors.New("invalid iCalendar content")
 	ErrEventNotCancellable     = errors.New("external calendar event cannot be cancelled")
 	ErrInvalidExceptionKind    = errors.New("invalid calendar exception kind")

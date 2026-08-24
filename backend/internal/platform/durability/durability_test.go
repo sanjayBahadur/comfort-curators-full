@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"comfort-curators-backend/internal/platform/config"
 	"comfort-curators-backend/internal/platform/database"
+	"comfort-curators-backend/internal/platform/testdb"
 
 	"github.com/jackc/pgx/v5"
 )
@@ -25,16 +25,13 @@ func (s *recordingSink) Deliver(_ context.Context, event EventEnvelope) error {
 
 func relayTestDB(t *testing.T) (*database.DB, bool) {
 	t.Helper()
-	cfg := config.LoadFromEnv()
-	if cfg.DBUser == "" {
-		cfg.DBUser = "ccuser"
+	// Deliberately not config.LoadFromEnv(): that inherits whatever DBName the
+	// developer's environment carries, which is how the suite reached the
+	// application database. testdb.Config resolves and guards the target.
+	if !testdb.Available() {
+		return nil, false
 	}
-	if cfg.DBPass == "" {
-		cfg.DBPass = "ccpass"
-	}
-	if cfg.DBName == "" {
-		cfg.DBName = "comfort_curators"
-	}
+	cfg := testdb.Config(t)
 	db, err := database.Connect(context.Background(), cfg)
 	if err != nil {
 		return nil, false

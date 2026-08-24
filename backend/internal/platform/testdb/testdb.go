@@ -84,6 +84,35 @@ func ValidateName(name string) error {
 	return nil
 }
 
+// MustName resolves the test database name and panics if it is not a
+// disposable one. It exists because the per-file helpers it replaces are
+// plain functions with no *testing.T in scope, and threading one through 36
+// files would have turned a mechanical substitution into a bespoke refactor.
+//
+// A panic is the right failure here: it aborts the package's test binary with
+// a stack trace, so the run fails loudly and visibly. The alternative that
+// must never be used is returning an error the caller can turn into a skip.
+func MustName() string {
+	name := Resolve().Name
+	if err := ValidateName(name); err != nil {
+		panic(fmt.Sprintf("%v\n\nThe test suite may only run against a disposable "+
+			"database. Unset CC_DB_NAME to use the default %q, or set it to a name "+
+			"ending in %q.", err, DefaultName, requiredSuffix))
+	}
+	return name
+}
+
+// EnsureExists creates the test database if it is missing. Callers that build
+// their own connection string via MustName use this to get the same
+// create-on-demand behaviour the *testing.T helpers provide.
+func EnsureExists() error {
+	s := Resolve()
+	if err := ValidateName(s.Name); err != nil {
+		return err
+	}
+	return ensureDatabase(s)
+}
+
 // ConnString renders a libpq URL for the given database name.
 func (s Settings) ConnString(dbName string) string {
 	return fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable",

@@ -12,6 +12,7 @@ import (
 	"comfort-curators-backend/internal/platform/config"
 	"comfort-curators-backend/internal/platform/database"
 	"comfort-curators-backend/internal/platform/durability"
+	"comfort-curators-backend/internal/platform/testdb"
 
 	"github.com/jackc/pgx/v5"
 )
@@ -50,10 +51,7 @@ func durabilityDBConfig() (config.Config, *database.DB, bool) {
 	if pass == "" {
 		pass = "ccpass"
 	}
-	name := os.Getenv("CC_DB_NAME")
-	if name == "" {
-		name = "comfort_curators"
-	}
+	name := testdb.MustName()
 
 	cfg := config.Config{
 		DBHost: host,
