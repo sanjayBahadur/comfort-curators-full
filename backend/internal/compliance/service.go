@@ -141,7 +141,7 @@ func (s *ComplianceService) ScanExpired(ctx context.Context, actorID string) (*S
 	now := time.Now().UTC()
 	result := &ScanExpiryResult{}
 
-	items, err := s.store.ListActiveItems(ctx, now)
+	items, err := s.store.ListScannableItems(ctx, now)
 	if err != nil {
 		return nil, fmt.Errorf("scan expired items: %w", err)
 	}

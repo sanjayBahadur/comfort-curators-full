@@ -97,7 +97,11 @@ func (s *ComplianceStore) ListItems(ctx context.Context, tenantID, propertyID st
 	return items, rows.Err()
 }
 
-func (s *ComplianceStore) ListActiveItems(ctx context.Context, now time.Time) ([]ComplianceItem, error) {
+// ListScannableItems returns items the expiry scan must consider: active
+// items that may need expiring, and already-expired ones whose compliance
+// hold must stay recorded on a re-scan. It is deliberately not "active only"
+// — that was the bug.
+func (s *ComplianceStore) ListScannableItems(ctx context.Context, now time.Time) ([]ComplianceItem, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT id, property_id, tenant_id, kind, severity, name, description,
 			effective_date, expiry_date, status, evidence_ids, renewed_from_id,
@@ -107,7 +111,7 @@ func (s *ComplianceStore) ListActiveItems(ctx context.Context, now time.Time) ([
 		ORDER BY expiry_date ASC
 	`, ItemStatusActive, ItemStatusExpired)
 	if err != nil {
-		return nil, fmt.Errorf("list active compliance items: %w", err)
+		return nil, fmt.Errorf("list scannable compliance items: %w", err)
 	}
 	defer rows.Close()
 
