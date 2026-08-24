@@ -340,17 +340,17 @@ func TestOnboardingHandlerMissingEvidenceBlocksActivation(t *testing.T) {
 	started := parseResource(t, startBody)
 
 	// Save all sections except evidence
-	sections := map[string]map[string]any{
-		"portfolio":           {"property_name": "Test Villa", "property_type": "villa", "managed_units": 1},
-		"goals":               {"primary_goal": "maximize_occupancy", "rental_strategy": "fixed_price"},
-		"service_preferences": {"communication_channel": "email", "currency": "INR"},
-		"budgets":             {"currency": "INR", "monthly_budget_minor_units": 5000000},
-		"photographs":         {"objects": []map[string]any{{"object_ref": "obj/p1", "caption": "living room"}}},
-		"amenities":           {"items": []map[string]any{{"name": "wifi", "quantity": 1}}},
-		"safety":              {"smoke_detectors_installed": true, "fire_extinguisher_present": true},
-		"furnishing":          {"furnishing_level": "fully_furnished", "inventory_count": 20},
-		"remediation":         {"open_items": []map[string]any{}, "completed_items": []map[string]any{}},
-		"fit_score_inputs":    {"property_score": 8, "market_score": 7, "operations_score": 8, "renovation_score": 6, "occupancy_score": 7},
+	sections := map[string]any{
+		"portfolio":           map[string]any{"property_name": "Test Villa", "property_type": "villa", "managed_units": 1},
+		"goals":               map[string]any{"primary_goal": "maximize_occupancy", "rental_strategy": "fixed_price"},
+		"service_preferences": map[string]any{"communication_channel": "email", "currency": "INR"},
+		"budgets":             map[string]any{"currency": "INR", "monthly_budget_minor_units": 5000000},
+		"photographs":         []map[string]any{{"object_ref": "obj/p1", "caption": "living room"}},
+		"amenities":           []map[string]any{{"name": "wifi", "quantity": 1}},
+		"safety":              map[string]any{"smoke_detectors_installed": true, "fire_extinguisher_present": true},
+		"furnishing":          map[string]any{"furnishing_level": "fully_furnished", "inventory_count": 20},
+		"remediation":         map[string]any{"open_items": []map[string]any{}, "completed_items": []map[string]any{}},
+		"fit_score_inputs":    map[string]any{"property_score": 8, "market_score": 7, "operations_score": 8, "renovation_score": 6, "occupancy_score": 7},
 	}
 	for name, payload := range sections {
 		resp, body := doJSON(t, "PUT", "/v1/onboarding/cases/"+started.ID+"/sections/"+name, map[string]any{
@@ -646,17 +646,17 @@ func TestOnboardingHandlerActivatedCaseRejectsMutations(t *testing.T) {
 	started := parseResource(t, startBody)
 
 	// Complete all sections
-	sections := map[string]map[string]any{
-		"portfolio":           {"property_name": "Test", "property_type": "villa", "managed_units": 1},
-		"goals":               {"primary_goal": "test", "rental_strategy": "fixed_price"},
-		"service_preferences": {"communication_channel": "email", "currency": "INR"},
-		"budgets":             {"currency": "INR", "monthly_budget_minor_units": 1000},
-		"photographs":         {"objects": []map[string]any{{"object_ref": "obj/p1"}}},
-		"amenities":           {"items": []map[string]any{{"name": "wifi", "quantity": 1}}},
-		"safety":              {"smoke_detectors_installed": true},
-		"furnishing":          {"furnishing_level": "basic", "inventory_count": 1},
-		"remediation":         {},
-		"fit_score_inputs":    {"property_score": 5, "market_score": 5, "operations_score": 5, "renovation_score": 5, "occupancy_score": 5},
+	sections := map[string]any{
+		"portfolio":           map[string]any{"property_name": "Test", "property_type": "villa", "managed_units": 1},
+		"goals":               map[string]any{"primary_goal": "test", "rental_strategy": "fixed_price"},
+		"service_preferences": map[string]any{"communication_channel": "email", "currency": "INR"},
+		"budgets":             map[string]any{"currency": "INR", "monthly_budget_minor_units": 1000},
+		"photographs":         []map[string]any{{"object_ref": "obj/p1"}},
+		"amenities":           []map[string]any{{"name": "wifi", "quantity": 1}},
+		"safety":              map[string]any{"smoke_detectors_installed": true},
+		"furnishing":          map[string]any{"furnishing_level": "basic", "inventory_count": 1},
+		"remediation":         map[string]any{},
+		"fit_score_inputs":    map[string]any{"property_score": 5, "market_score": 5, "operations_score": 5, "renovation_score": 5, "occupancy_score": 5},
 	}
 	for name, payload := range sections {
 		doJSON(t, "PUT", "/v1/onboarding/cases/"+started.ID+"/sections/"+name, map[string]any{

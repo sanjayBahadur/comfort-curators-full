@@ -225,7 +225,7 @@ func (s *Service) ReviewDocument(ctx context.Context, tenantID, documentID strin
 
 	versionID := ""
 	if doc.CurrentVersion > 1 {
-		ver, err := s.store.GetVersionByNumber(ctx, tenantID, documentID, doc.CurrentVersion)
+		ver, err := s.store.GetVersionByNumber(ctx, tenantID, documentID, doc.CurrentVersion-1)
 		if err != nil {
 			return nil, err
 		}
@@ -348,8 +348,8 @@ func (s *Service) ConfirmSubmission(ctx context.Context, tenantID, packetID stri
 		var versionNumber int
 		var contentHash string
 
-		if doc.CurrentVersion > 0 {
-			ver, err := s.store.GetVersionByNumber(ctx, tenantID, docID, doc.CurrentVersion)
+		if doc.CurrentVersion > 1 {
+			ver, err := s.store.GetVersionByNumber(ctx, tenantID, docID, doc.CurrentVersion-1)
 			if err != nil {
 				if errors.Is(err, ErrDocumentVersionNotFound) {
 					// Document has no versions yet
