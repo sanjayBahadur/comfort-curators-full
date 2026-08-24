@@ -76,12 +76,27 @@ accident during the auth, roles and dispatch rework:
 
 ## Known traps
 
-- **Tests currently write to whatever Postgres is on `localhost:5432`**,
-  including `TRUNCATE` and a `schema_migrations` checksum poisoning fixture
-  (`tests/database_integration_test.go:154`) that will refuse to let the
-  API boot afterwards. **Do not run `go test ./...` against a machine with
-  the stack up until `P1-02` lands.** Recovery: reset the version-4
-  checksum in `schema_migrations`.
+- ~~Tests write to whatever Postgres is on `localhost:5432`~~ **Closed by
+  `P1-02`.** Tests now resolve their target through
+  `internal/platform/testdb`, default to `comfort_curators_test`, and
+  **panic** on any database whose name does not end in `_test`. Running
+  `go test ./...` with the stack up is safe and verified: the checksum
+  poisoning fixture in `tests/database_integration_test.go` runs and
+  writes `deadbeef…` to the *test* database, leaving the application
+  database byte-identical. Never weaken `testdb.ValidateName`, and never
+  turn its failure into a `t.Skip`.
+- **The suite is red: 104 failing tests across 18 packages** (`P1-03`).
+  Measured 24 Aug 2026 once the suite could be run safely. This is not a
+  regression from `P1-02` — the same failures occur against a database
+  cloned from the seeded application database, so they are genuine. The
+  earlier "~30 failing" figure was an undercount from a run that aborted
+  partway. Until `P1-03` lands, a red suite says nothing new; do not treat
+  it as a signal.
+- **No session→worker link exists.** `workers` has no `user_id`/`actor_id`
+  column and there is no `/me` endpoint, so nothing can resolve a session
+  to a worker. `P2-04` and `P2-05` are therefore blocked behind `P1-04`
+  (migrations), not small frontend fixes. Critical path for field work:
+  `P1-02` → `P1-04` → `workers.user_id` → `P2-04`/`P2-05`.
 - **Schema changes do not apply.** 147 tables are created by
   `CREATE TABLE IF NOT EXISTS` in per-module `EnsureSchema` functions, so
   altering an existing table is silently skipped. `P1-04` fixes this;
