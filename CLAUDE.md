@@ -111,15 +111,23 @@ accident during the auth, roles and dispatch rework:
   database, so they are genuine. The earlier "~30 failing" figure was an
   undercount from a run that aborted partway. Until `P1-03` lands, a red
   suite says nothing new; do not treat it as a signal.
-- **No session→worker link exists.** `workers` has no `user_id`/`actor_id`
-  column and there is no `/me` endpoint, so nothing can resolve a session
-  to a worker. `P2-04` and `P2-05` are therefore blocked behind `P1-04`
-  (migrations), not small frontend fixes. Critical path for field work:
-  `P1-02` → `P1-04` → `workers.user_id` → `P2-04`/`P2-05`.
-- **Schema changes do not apply.** 147 tables are created by
-  `CREATE TABLE IF NOT EXISTS` in per-module `EnsureSchema` functions, so
-  altering an existing table is silently skipped. `P1-04` fixes this;
-  until then the only reset is `docker compose down -v`.
+- **`workers.user_id` now exists** (migration 006) but **nothing populates
+  or reads it yet**, and there is still no `/me` endpoint. Treat a null
+  `user_id` as "this worker cannot sign in yet" — never as "any session
+  matches". Wiring it up is the remaining work in `P2-04`/`P2-05`.
+- ~~Schema changes do not apply~~ **Closed by `P1-04`.** The module schema
+  is migration `005_module_schema_baseline.sql`, generated from the real
+  startup path by `TestGenerateSchemaBaseline` and verified byte-identical
+  to a live database. Add a column with an ordinary forward migration — see
+  `006_workers_user_id.sql`. A migration may declare
+  `-- baseline-if-exists: <table>` to be recorded rather than executed on a
+  database that already has the schema; **only** use that marker for a
+  genuine baseline. Regenerate the baseline, never hand-edit it.
+- **`EnsureSchema` still runs at startup**, so the schema has two sources of
+  truth. It is idempotent and harmless, but new tables must go in a
+  migration, not in an `EnsureSchema` body, or they will not exist on a
+  database built from migrations alone. Retiring the 25 calls in
+  `initializeSchema` is outstanding.
 - **There is no production login.** The frontend's only sign-in calls
   `/auth/session/create`, which exists only under the `acceptance` build
   tag. A default build has no working auth (`P2-01`, `P2-02`).
