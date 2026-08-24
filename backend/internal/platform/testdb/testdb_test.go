@@ -74,6 +74,7 @@ func TestDefaultIsNotTheApplicationDatabase(t *testing.T) {
 // supplied name, not only to the default.
 func TestEnvOverrideIsStillGuarded(t *testing.T) {
 	t.Setenv("CC_DB_NAME", "comfort_curators")
+	t.Setenv("CC_DB_NAME_EXACT", "1")
 
 	s := testdb.Resolve()
 	if s.Name != "comfort_curators" {
@@ -105,6 +106,7 @@ func TestConnStringFatalsOnUnsafeName(t *testing.T) {
 	cmd.Env = append(os.Environ(),
 		"TESTDB_GUARD_SUBPROCESS=1",
 		"CC_DB_NAME=comfort_curators",
+		"CC_DB_NAME_EXACT=1",
 	)
 	out, err := cmd.CombinedOutput()
 	output := string(out)
@@ -137,8 +139,8 @@ func TestConnectCreatesAndUsesTestDatabase(t *testing.T) {
 	if err := pool.QueryRow(context.Background(), "SELECT current_database()").Scan(&current); err != nil {
 		t.Fatalf("querying current database: %v", err)
 	}
-	if current != testdb.DefaultName {
-		t.Fatalf("connected to %q, want %q", current, testdb.DefaultName)
+	if !strings.HasPrefix(current, "comfort_curators_test") {
+		t.Fatalf("connected to %q, want a per-package comfort_curators_test* database", current)
 	}
 	if current == "comfort_curators" {
 		t.Fatal("connected to the application database")
@@ -149,6 +151,7 @@ func TestResolveDefaults(t *testing.T) {
 	t.Setenv("CC_DB_HOST", "")
 	t.Setenv("CC_DB_PORT", "")
 	t.Setenv("CC_DB_NAME", "")
+	t.Setenv("CC_DB_NAME_EXACT", "1")
 
 	s := testdb.Resolve()
 	if s.Host != "localhost" {
