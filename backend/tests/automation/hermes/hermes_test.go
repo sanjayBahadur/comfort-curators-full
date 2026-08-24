@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"comfort-curators-backend/internal/automation/hermes"
+	"comfort-curators-backend/internal/platform/testdb"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -163,9 +164,6 @@ func hermesTestPool() (*pgxpool.Pool, error) {
 	if pass == "" {
 		pass = "ccpass"
 	}
-	name := os.Getenv("CC_DB_NAME")
-	if name == "" {
-		name = "comfort_curators"
-	}
+	name := testdb.MustName()
 	return pgxpool.New(context.Background(), fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", user, pass, host, port, name))
 }

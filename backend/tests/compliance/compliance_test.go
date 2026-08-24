@@ -10,6 +10,7 @@ import (
 
 	"comfort-curators-backend/internal/compliance"
 	"comfort-curators-backend/internal/platform/audit"
+	"comfort-curators-backend/internal/platform/testdb"
 	"comfort-curators-backend/internal/property"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -64,10 +65,7 @@ func dbConnString() string {
 	if pass == "" {
 		pass = "ccpass"
 	}
-	name := os.Getenv("CC_DB_NAME")
-	if name == "" {
-		name = "comfort_curators"
-	}
+	name := testdb.MustName()
 	return "postgres://" + user + ":" + pass + "@" + host + ":" + port + "/" + name + "?sslmode=disable"
 }
 

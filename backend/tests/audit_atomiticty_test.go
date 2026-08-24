@@ -14,6 +14,7 @@ import (
 	"comfort-curators-backend/internal/iam"
 	"comfort-curators-backend/internal/platform/audit"
 	"comfort-curators-backend/internal/platform/database"
+	"comfort-curators-backend/internal/platform/testdb"
 	"comfort-curators-backend/internal/property"
 
 	"github.com/jackc/pgx/v5"
@@ -58,10 +59,7 @@ func auditPool(t *testing.T) *pgxpool.Pool {
 	if pass == "" {
 		pass = "ccpass"
 	}
-	name := os.Getenv("CC_DB_NAME")
-	if name == "" {
-		name = "comfort_curators"
-	}
+	name := testdb.MustName()
 	connStr := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", user, pass, host, port, name)
 	pool, err := pgxpool.New(context.Background(), connStr)
 	if err != nil {

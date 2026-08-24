@@ -10,6 +10,7 @@ import (
 
 	"comfort-curators-backend/internal/platform/config"
 	"comfort-curators-backend/internal/platform/database"
+	"comfort-curators-backend/internal/platform/testdb"
 )
 
 func postgresAvailable() bool {
@@ -47,10 +48,7 @@ func testJobStore(t *testing.T) (*JobStore, *database.DB) {
 	if pass == "" {
 		pass = "ccpass"
 	}
-	name := os.Getenv("CC_DB_NAME")
-	if name == "" {
-		name = "comfort_curators"
-	}
+	name := testdb.MustName()
 
 	cfg := config.Config{
 		DBHost: host,

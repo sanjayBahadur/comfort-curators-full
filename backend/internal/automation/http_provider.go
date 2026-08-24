@@ -106,9 +106,9 @@ type chatChoiceMessage struct {
 }
 
 type chatToolCall struct {
-	ID       string          `json:"id"`
-	Type     string          `json:"type"`
-	Function chatToolCallFn  `json:"function"`
+	ID       string         `json:"id"`
+	Type     string         `json:"type"`
+	Function chatToolCallFn `json:"function"`
 }
 
 type chatToolCallFn struct {
